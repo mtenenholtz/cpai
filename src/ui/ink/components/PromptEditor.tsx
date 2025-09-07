@@ -254,15 +254,17 @@ export function PromptEditor(props: {
     );
   }
 
+  const help = 'Esc save • Ctrl+Q cancel • Ctrl+S/Ctrl+Enter save • Shift+W/B word fwd/back • Ctrl+K kill-eol • Ctrl+W del word • Arrows move • Enter newline • Tab=2 spaces';
+
   return (
     <Box borderStyle="round" borderColor="cyan" paddingX={1} paddingY={0} flexDirection="column" height={outerH}>
-      <Box height={1}><Text>Prompt Editor — Ctrl+S save • Esc cancel • Ctrl+K kill-eol • Ctrl+W del word  |  tokens≈{tokens}</Text></Box>
+      <Box height={1}><Text>Prompt Editor  |  tokens≈{tokens}</Text></Box>
       <Box flexDirection="column" height={innerH}>
         {visible.length ? visible.map((t, i) => <Box key={i}><Text>{renderLine(i, t)}</Text></Box>) : (
           <Text dimColor>(empty)</Text>
         )}
       </Box>
-      <Box height={1}><Text dimColor>Arrows/Home/End • Enter newline • Tab=2 spaces • Ctrl+Enter save</Text></Box>
+      <Box height={1}><Text dimColor>{help}</Text></Box>
     </Box>
   );
 }
