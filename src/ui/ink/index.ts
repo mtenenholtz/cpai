@@ -1,7 +1,7 @@
 import type { TuiAdapter } from '../adapter.js';
 
 export class InkAdapter implements TuiAdapter {
-  async run(opts: { cwd: string; promptText?: string; promptsDir?: string; openPromptPicker?: boolean }): Promise<void> {
+  async run(opts: { cwd: string; promptText?: string; promptsDir?: string; openPromptPicker?: boolean; mouse?: boolean }): Promise<void> {
     try {
       const inkMod: any = await (Function('return import("ink")')() as Promise<any>);
       const reactMod: any = await (Function('return import("react")')() as Promise<any>);

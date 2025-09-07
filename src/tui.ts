@@ -23,7 +23,7 @@ function renderTreeLine(v: VisibleNode, metric: State["treeMetric"]): string {
   const indent = "  ".repeat(Math.max(0, v.depth));
   if (v.kind === "dir") {
     const box = v.mixed ? chalk.yellow("◐") : v.included ? chalk.green("✔") : chalk.gray("✖");
-    const label = v.node.path === "." ? "." : v.node.name;
+    const label = v.node.name; // root name comes from buildDirTree
     const val = metricOfDir(v, metric);
     const num = String(val).padStart(9);
     return `${box}  ${indent}${label}/`.padEnd(64) + `  ${num}`;
@@ -37,7 +37,7 @@ function renderTreeLine(v: VisibleNode, metric: State["treeMetric"]): string {
   }
 }
 
-export async function runTui(cwd: string, initial?: { promptText?: string; promptsDir?: string; openPromptPicker?: boolean }) {
+export async function runTui(cwd: string, initial?: { promptText?: string; promptsDir?: string; openPromptPicker?: boolean; mouse?: boolean }) {
   const absCwd = path.resolve(process.cwd(), cwd || ".");
   const fileCfg = await loadAicpConfig(absCwd);
   const state = makeDefaultState(absCwd, fileCfg);
@@ -59,7 +59,7 @@ export async function runTui(cwd: string, initial?: { promptText?: string; promp
   }
   process.on('SIGINT', () => gracefulExit(0));
 
-  const help = "? Help  / Filter  Space Toggle  A All  N None  V Invert  i include  x exclude  g .gitignore  a .aicpignore  . Hidden  b Budget  p EditPrompt  P Prompts  h/l Fold/Unfold  H clear mutes  d Toggle Details  w Swap Focus  L Layout  F2 Metric  o Write  c Copy  Ctrl‑R Rescan  s Sort  m Format  e XML  t Tags  q Quit";
+  const help = "? Help  3 Prompts  / Filter  Space Toggle  A All  N None  V Invert  i include  x exclude  g .gitignore  a .aicpignore  . Hidden  b Budget  p EditPrompt  P Prompts  h/l Fold/Unfold  H clear mutes  d Toggle Details  w Swap Focus  L Layout  F2 Metric  o Write  c Copy  Ctrl‑R Rescan  s Sort  m Format  e XML  t Tags  q Quit";
 
   const tabs = blessed.listbar({
     parent: screen,
@@ -283,6 +283,8 @@ export async function runTui(cwd: string, initial?: { promptText?: string; promp
     screen.render();
   }
   cheatsheet.key(["escape", "enter", "q", "?", "f1"], () => toggleCheatsheet(false));
+  // Numeric shortcut for prompts picker
+  screen.key(["3"], async () => { await showPromptPicker(); });
 
   // Status helpers
   function setStatus(msgTop: string, msgBottom?: string) {
@@ -354,7 +356,7 @@ export async function runTui(cwd: string, initial?: { promptText?: string; promp
       const count = visibleCount();
       let lines: string[] = [];
       if (state.treeMode) {
-        const root = buildDirTree(state.files);
+        const root = buildDirTree(state.files, path.basename(state.cwd));
         const eligSet = new Set(eligible.map((f) => f.relPath));
         const vis = makeVisibleTree(root, state.treeExpanded, eligSet);
         // rebuild a global list of visible nodes and map selectedIdx to position
@@ -413,7 +415,7 @@ export async function runTui(cwd: string, initial?: { promptText?: string; promp
             if (!state.manualExcluded.has(f.relPath) && !state.autoDeselected.has(f.relPath)) included += 1;
           }
           const linesOut = [
-            chalk.bold((node.node.path === "." ? "." : node.node.path) + "/"),
+            chalk.bold(((node.node.path === "." ? path.basename(state.cwd) : node.node.path) + "/")),
             `files=${included}/${files.length}  tokens=${tokens}  lines=${lines}  bytes=${humanBytes(bytes)}`
           ];
           info.setContent(linesOut.join("\n"));

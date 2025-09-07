@@ -12,7 +12,7 @@ export function DetailsPane(props: { state: State; treeMode: boolean; selectedId
   const body = useMemo(() => {
     if (props.treeMode) {
       const eligible = new Set(buildEligible(state).map((f) => f.relPath));
-      const root = buildDirTree(state.files);
+      const root = buildDirTree(state.files, path.basename(state.cwd || '.'));
       const vis = makeVisibleTree(root, state.treeExpanded, eligible);
       const node = vis[props.selectedIdx];
       if (!node) return <Text dimColor>(no selection)</Text>;
@@ -42,7 +42,7 @@ export function DetailsPane(props: { state: State; treeMode: boolean; selectedId
         }
         return (
           <Box flexDirection="column">
-            <Text color="cyan">{(node.node.path === '.' ? '.' : node.node.path) + '/'}</Text>
+            <Text color="cyan">{((node.node.path === '.' ? path.basename(state.cwd || '.') : node.node.path) + '/')}</Text>
             <Text>
               selected={included}/{files.length} files  tokens={tokens}  lines={lines}  bytes={humanBytes(bytes)}
             </Text>

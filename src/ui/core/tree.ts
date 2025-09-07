@@ -3,8 +3,8 @@ import type { State } from './state.js';
 
 export type DirNode = { name: string; path: string; dirs: Map<string, DirNode>; files: FileEntry[] };
 
-export function buildDirTree(files: FileEntry[]): DirNode {
-  const root: DirNode = { name: '.', path: '.', dirs: new Map(), files: [] };
+export function buildDirTree(files: FileEntry[], rootName: string = '.'): DirNode {
+  const root: DirNode = { name: rootName, path: '.', dirs: new Map(), files: [] };
   for (const f of files) {
     const parts = f.relPath.split('/');
     let node = root;
@@ -87,4 +87,3 @@ export function metricOfDir(v: { tokens: number }, metric: State['treeMetric']) 
   // Directories aggregate tokens by default.
   return metric === 'tokens' ? v.tokens : v.tokens;
 }
-

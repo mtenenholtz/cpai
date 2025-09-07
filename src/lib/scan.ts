@@ -5,6 +5,7 @@ import binaryExtensions from "binary-extensions";
 import { extnameLower, toPosix } from "./utils.js";
 import { ensureEncoder } from "./tokenizer.js";
 import type { FileEntry, ScanOptions, ScanResult } from "../types.js";
+import os from "node:os";
 
 const binarySet = new Set(binaryExtensions.map((e) => e.toLowerCase()));
 
@@ -56,27 +57,31 @@ export async function scan(options: ScanOptions): Promise<ScanResult> {
     // We'll read .aicpignore ourselves and append to exclude if present:
   });
 
-  // If .aicpignore exists, merge its lines into exclude
+  // If .aicpignore exists, merge its lines into exclude (project + global)
   if (useAicpIgnore) {
+    const extra: string[] = [];
     try {
       const raw = await fs.readFile(path.join(cwd, ".aicpignore"), "utf8");
-      const extra = raw
-        .split(/\r?\n/)
-        .map((l) => l.trim())
-        .filter((l) => l && !l.startsWith("#"));
-      if (extra.length) {
-        // re-run globby with augmented exclude
-        const paths2 = await globby(patterns, {
-          cwd,
-          gitignore: useGitignore,
-          ignore: [...exclude, ...extra],
-          dot: hidden,
-          onlyFiles: true,
-          followSymbolicLinks: false
-        });
-        paths.splice(0, paths.length, ...paths2);
+      extra.push(...raw.split(/\r?\n/).map((l) => l.trim()).filter((l) => l && !l.startsWith("#")));
+    } catch {}
+    try {
+      const home = os.homedir?.() || process.env.HOME || process.env.USERPROFILE || "";
+      if (home) {
+        const rawG = await fs.readFile(path.join(home, ".aicp", ".aicpignore"), "utf8");
+        extra.push(...rawG.split(/\r?\n/).map((l) => l.trim()).filter((l) => l && !l.startsWith("#")));
       }
     } catch {}
+    if (extra.length) {
+      const paths2 = await globby(patterns, {
+        cwd,
+        gitignore: useGitignore,
+        ignore: [...exclude, ...extra],
+        dot: hidden,
+        onlyFiles: true,
+        followSymbolicLinks: false
+      });
+      paths.splice(0, paths.length, ...paths2);
+    }
   }
 
   const enc = await ensureEncoder(model, encoding);
@@ -182,23 +187,28 @@ export async function scanConcurrent(
   });
 
   if (useAicpIgnore) {
+    const extraEx: string[] = [];
     try {
       const raw = await fs.readFile(path.join(cwd, ".aicpignore"), "utf8");
-      const extraEx = raw
-        .split(/\r?\n/)
-        .map((l) => l.trim())
-        .filter((l) => l && !l.startsWith("#"));
-      if (extraEx.length) {
-        paths = await globby(patterns, {
-          cwd,
-          gitignore: useGitignore,
-          ignore: [...exclude, ...extraEx],
-          dot: hidden,
-          onlyFiles: true,
-          followSymbolicLinks: false
-        });
+      extraEx.push(...raw.split(/\r?\n/).map((l) => l.trim()).filter((l) => l && !l.startsWith("#")));
+    } catch {}
+    try {
+      const home = os.homedir?.() || process.env.HOME || process.env.USERPROFILE || "";
+      if (home) {
+        const rawG = await fs.readFile(path.join(home, ".aicp", ".aicpignore"), "utf8");
+        extraEx.push(...rawG.split(/\r?\n/).map((l) => l.trim()).filter((l) => l && !l.startsWith("#")));
       }
     } catch {}
+    if (extraEx.length) {
+      paths = await globby(patterns, {
+        cwd,
+        gitignore: useGitignore,
+        ignore: [...exclude, ...extraEx],
+        dot: hidden,
+        onlyFiles: true,
+        followSymbolicLinks: false
+      });
+    }
   }
 
   const total = paths.length;

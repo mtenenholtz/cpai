@@ -3,6 +3,7 @@ import {Box, Text} from 'ink';
 import type { State } from '../../core/state.js';
 import { buildEligible } from '../../core/selectors.js';
 import { buildDirTree, makeVisibleTree } from '../../core/tree.js';
+import path from 'node:path';
 
 function padLeft(n: number | string, w: number): string { const s = String(n); return s.length >= w ? s : ' '.repeat(w - s.length) + s; }
 function padRightStr(s: string, w: number): string { return s.length > w ? s.slice(0, Math.max(0, w - 1)) + '…' : s.padEnd(w); }
@@ -18,10 +19,10 @@ export function FilesPane(props: {
     const s = props.state;
     if (s.treeMode) {
       const eligible = new Set(buildEligible(s).map((f) => f.relPath));
-      const root = buildDirTree(s.files);
+      const root = buildDirTree(s.files, path.basename(s.cwd || '.'));
       return makeVisibleTree(root, s.treeExpanded, eligible).map((v) => {
         const tokens = v.kind === 'dir' ? v.tokens : v.file.tokens;
-        const name = v.kind === 'dir' ? (v.node.path === '.' ? '.' : v.node.name + '/') : v.file.relPath.split('/').pop()!;
+        const name = v.kind === 'dir' ? (v.node.name + '/') : v.file.relPath.split('/').pop()!;
         const indent = '  '.repeat(Math.max(0, v.depth));
         const status = v.kind === 'dir' ? (v.mixed ? 'mixed' : v.included ? 'included' : 'excluded') : (v.included ? 'included' : 'excluded');
         const mark = status === 'mixed' ? '◐' : status === 'included' ? '✔' : '✖';

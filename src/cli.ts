@@ -4,7 +4,7 @@ import chalk from "chalk";
 import clipboard from "clipboardy";
 import path from "node:path";
 import fs from "node:fs/promises";
-import { loadAicpConfig, writeDefaultAicpConfig, DEFAULT_CONFIG } from "./lib/config.js";
+import { loadAicpConfig, writeDefaultAicpConfig, writeDefaultGlobalAicpConfig, DEFAULT_CONFIG } from "./lib/config.js";
 import { scan } from "./lib/scan.js";
 import { ensureEncoder } from "./lib/tokenizer.js";
 import { formatOutput, packFilesToBudget, renderJson, formatXml, formatTags, wrapWithPrompt } from "./lib/format.js";
@@ -78,10 +78,16 @@ program
   .command("init")
   .description("Create a .aicprc.json with sensible defaults")
   .option("-C, --cwd <dir>", "working directory", ".")
+  .option("--global", "write to ~/.aicp/config.json instead of local .aicprc.json", false)
   .action(async (opts) => {
-    const cwd = path.resolve(process.cwd(), opts.cwd);
-    const p = await writeDefaultAicpConfig(cwd);
-    console.log(chalk.green(`Created ${p}`));
+    if (opts.global) {
+      const p = await writeDefaultGlobalAicpConfig();
+      console.log(chalk.green(`Created ${p}`));
+    } else {
+      const cwd = path.resolve(process.cwd(), opts.cwd);
+      const p = await writeDefaultAicpConfig(cwd);
+      console.log(chalk.green(`Created ${p}`));
+    }
   });
 
 program
@@ -345,6 +351,7 @@ program
   )
   .option("--pick-prompts", "open saved prompts picker on launch", false)
   .option("--ui <ui>", "UI backend: ink | blessed", "blessed")
+  .option("--mouse", "enable mouse hover/selection in the TUI (overrides config)")
   .action(async (dirArg, opts) => {
     const cwd = path.resolve(process.cwd(), opts.cwd || dirArg || ".");
     let promptText: string | undefined = undefined;
@@ -362,11 +369,20 @@ program
     const uiKind = String(opts.ui) === 'ink' ? 'ink' : 'blessed';
     try {
       const adapter = await getTuiAdapter(uiKind);
+      let mouseFlag: boolean | undefined = undefined;
+      if (typeof opts.mouse === 'boolean') mouseFlag = !!opts.mouse;
+      else {
+        try {
+          const cfg = await loadAicpConfig(cwd);
+          mouseFlag = cfg.mouse ?? false;
+        } catch { mouseFlag = false; }
+      }
       await adapter.run({
         cwd,
         promptText,
         promptsDir: opts.promptsDir ? String(opts.promptsDir) : undefined,
-        openPromptPicker: !!opts.pickPrompts
+        openPromptPicker: !!opts.pickPrompts,
+        mouse: mouseFlag
       });
     } catch (e: any) {
       console.error(chalk.red(e?.message ?? e));

@@ -4,6 +4,7 @@ export interface TuiAdapter {
     promptText?: string;
     promptsDir?: string;
     openPromptPicker?: boolean;
+    mouse?: boolean;
   }): Promise<void>;
 }
 

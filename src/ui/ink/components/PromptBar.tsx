@@ -8,6 +8,7 @@ export function PromptBar(props: {
   focused: boolean;
   onSubmit?: () => void;
   onEscape?: () => void;
+  onOpenEditor?: () => void;
 }) {
   return (
     <Box>
@@ -18,7 +19,7 @@ export function PromptBar(props: {
         focus={props.focused}
         onSubmit={props.onSubmit}
       />
-      {!props.focused && <Text dimColor>  (press p)</Text>}
+      {!props.focused && <Text dimColor>  (press p • Shift+P=editor)</Text>}
     </Box>
   );
 }

@@ -2,7 +2,7 @@ import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {Box, Text, useInput, measureElement, useApp} from 'ink';
 import {loadAicpConfig} from '../../lib/config.js';
 import {makeDefaultState, type State} from '../core/state.js';
-import {rescan, renderPackedText} from '../core/actions.js';
+import {rescan, renderPackedText, loadSavedPrompts} from '../core/actions.js';
 import {buildEligible} from '../core/selectors.js';
 import {buildDirTree, makeVisibleTree, type VisibleNode} from '../core/tree.js';
 import {Tabs, type TabId} from './components/Tabs.js';
@@ -11,11 +11,13 @@ import {RankingsPane} from './components/RankingsPane.js';
 import {PromptBar} from './components/PromptBar.js';
 import {StatusBar} from './components/StatusBar.js';
 import {DetailsPane} from './components/DetailsPane.js';
+import {PromptEditor} from './components/PromptEditor.js';
+import {PromptsPicker} from './components/PromptsPicker.js';
 import clipboard from 'clipboardy';
 import {useMouse, type MouseEvent as InkMouseEvent} from './hooks/useMouse.js';
 import path from 'node:path';
 
-export function App(props: {cwd: string; promptText?: string; promptsDir?: string; openPromptPicker?: boolean}) {
+export function App(props: {cwd: string; promptText?: string; promptsDir?: string; openPromptPicker?: boolean; mouse?: boolean}) {
   const { exit } = useApp();
   // Fixed-height headers for Files list to mirror Rankings and keep symmetric vertical structure
   function FilesHeaders({ width, highlight }: { width: number; highlight: boolean }) {
@@ -64,7 +66,9 @@ export function App(props: {cwd: string; promptText?: string; promptsDir?: strin
   const [rows, setRows] = useState<number>(process.stdout.rows || 24);
   const [cols, setCols] = useState<number>(process.stdout.columns || 80);
   const [focusPrompt, setFocusPrompt] = useState(false);
+  const [editingPrompt, setEditingPrompt] = useState(false);
   const [statusMsg, setStatusMsg] = useState<string>('');
+  const [showPromptsPicker, setShowPromptsPicker] = useState(false);
   const filesBodyRef = useRef<any>(null);
   const ranksBodyRef = useRef<any>(null);
   useEffect(() => {
@@ -112,6 +116,7 @@ export function App(props: {cwd: string; promptText?: string; promptsDir?: strin
         const fileCfg = await loadAicpConfig(cwd);
         const s = makeDefaultState(cwd, fileCfg);
         s.promptText = props.promptText ?? s.promptText;
+        s.availablePrompts = await loadSavedPrompts(cwd, props.promptsDir);
         await rescan(s, (d, t) => setProgress({done: d, total: t}));
         setState({...s});
       } catch (e: any) {
@@ -123,6 +128,7 @@ export function App(props: {cwd: string; promptText?: string; promptsDir?: strin
   // Keybindings: j/k/g/G, space, T, Ctrl-R, q/C-c; p to focus prompt; d to toggle details/rank
   useInput((input, key) => {
     if (!state) return;
+    if (editingPrompt) return;
     if (focusPrompt) {
       // While prompt has focus, let TextInput consume input; Esc exits
       if (key.escape) setFocusPrompt(false);
@@ -131,7 +137,7 @@ export function App(props: {cwd: string; promptText?: string; promptsDir?: strin
     // Numeric tab shortcuts 1-4
     if (input === '1') { state.treeMode = true; bump(state); return; }
     if (input === '2') { state.treeMode = false; bump(state); return; }
-    if (input === '3') { setFocusPrompt(true); return; }
+    if (input === '3') { setShowPromptsPicker(true); return; }
     if (key.ctrl && input === 'c') { exit(); return; }
     if (input === 'q') { exit(); return; }
     if (key.ctrl && input === 'r') {
@@ -143,6 +149,7 @@ export function App(props: {cwd: string; promptText?: string; promptsDir?: strin
       })();
       return;
     }
+    if (input === 'P') { setEditingPrompt(true); return; }
     if (input === 'c') {
       (async () => {
         try {
@@ -444,7 +451,7 @@ export function App(props: {cwd: string; promptText?: string; promptsDir?: strin
     } catch {}
   }, [rows, cols, focusPane, state, viewTop, rankTop, focusPrompt]);
 
-  const mouseAllowed = (process.env.AICP_MOUSE !== '0') && !focusPrompt;
+  const mouseAllowed = (process.env.AICP_MOUSE !== '0') && !focusPrompt && !editingPrompt;
   useMouse(handleMouse, mouseAllowed);
 
   if (error) return (
@@ -469,8 +476,8 @@ export function App(props: {cwd: string; promptText?: string; promptsDir?: strin
   const filesBody = Math.max(1, innerH - 2);     // minus title and headers
   const ranksBody = Math.max(1, innerH - 2);     // minus title and headers
   const safeCols = Math.max(10, (cols || 80) - 2); // account for root paddingX={1}
-  const fullHelp = `${focusPane === 'files' ? 'Files' : 'Rankings'} • j/k scroll • g/G home/end • space toggle • T tree/flat • d details/rank • w swap • p prompt • Ctrl-R rescan • q quit${statusMsg ? ' • ' + statusMsg : ''}`;
-  const shortHelp = `${focusPane === 'files' ? 'Files' : 'Rankings'} • j/k • g/G • space • T • d • w • p • Ctrl-R • q${statusMsg ? ' • ' + statusMsg : ''}`;
+  const fullHelp = `${focusPane === 'files' ? 'Files' : 'Rankings'} • j/k scroll • g/G home/end • space toggle • T tree/flat • d details/rank • w swap • p prompt • Shift+P editor • Ctrl-R rescan • q quit${statusMsg ? ' • ' + statusMsg : ''}`;
+  const shortHelp = `${focusPane === 'files' ? 'Files' : 'Rankings'} • j/k • g/G • space • T • d • w • p • Shift+P • Ctrl-R • q${statusMsg ? ' • ' + statusMsg : ''}`;
   const help = safeCols >= 108 ? fullHelp : shortHelp;
 
   // moved above the early returns; see earlier block
@@ -487,7 +494,24 @@ export function App(props: {cwd: string; promptText?: string; promptsDir?: strin
     <Box flexDirection="column" paddingX={1}>
       <Tabs active={activeTab} onSelect={onSelectTab} />
       <Box height={midH}>
-        {(() => {
+        {editingPrompt ? (
+          <PromptEditor
+            initialValue={state.promptText ?? ''}
+            width={safeCols}
+            height={midH}
+            onSubmit={(text) => { state.promptText = text; bump(state); setEditingPrompt(false); setStatusMsg('Prompt saved'); }}
+            onCancel={() => { setEditingPrompt(false); setStatusMsg('Prompt edit canceled'); }}
+          />
+        ) : showPromptsPicker ? (
+          <PromptsPicker
+            prompts={state.availablePrompts}
+            initialSelected={state.selectedPrompts}
+            width={safeCols}
+            height={midH}
+            onApply={(names) => { state.selectedPrompts = new Set(names); bump(state); setShowPromptsPicker(false); setStatusMsg('Prompts updated'); }}
+            onCancel={() => { setShowPromptsPicker(false); setStatusMsg('Prompts selection canceled'); }}
+          />
+        ) : (() => {
           const totalCols = cols || 80;
           const leftWidth = Math.max(20, Math.floor(totalCols * (focusPane === 'files' ? 0.6 : 0.4)));
           const rightWidth = Math.max(20, totalCols - leftWidth - 2); // -2 for gutter
@@ -558,6 +582,7 @@ export function App(props: {cwd: string; promptText?: string; promptsDir?: strin
         onChange={(v) => { state.promptText = v; bump(state); }}
         focused={focusPrompt}
         onSubmit={() => setFocusPrompt(false)}
+        onOpenEditor={() => setEditingPrompt(true)}
       />
       <StatusBar help={help} gauge={tokenGauge} width={safeCols} />
     </Box>
