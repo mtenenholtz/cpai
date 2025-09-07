@@ -189,7 +189,14 @@ export function PromptEditor(props: {
     if (key.ctrl && key.return) { props.onSubmit(joinLines(lines)); return; }
 
     // Normalize Backspace across terminals (DEL 0x7F or BS 0x08)
-    const isBackspaceKey = key.backspace || input === '\u0008' || input === '\u007F' || input === '\b' || input === '\x7f';
+    const ch = typeof input === 'string' ? input : '';
+    const isBackspaceKey =
+      key.backspace ||
+      ch === '\u0008' || // BS
+      ch === '\u007F' || // DEL
+      ch === '\b' ||
+      ch === '\x7f' ||
+      (key.ctrl && (ch === 'h' || ch === 'H')); // many terms map Backspace to Ctrl+H
 
     // Cursor movement
     if (key.leftArrow) { setCursor(row, Math.max(0, col - 1)); return; }
