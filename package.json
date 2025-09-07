@@ -10,6 +10,7 @@
     "build": "tsc -p tsconfig.json",
     "dev": "tsx src/cli.ts --help",
     "start": "node dist/cli.js",
+    "tui": "node dist/cli.js tui",
     "prepare": "pnpm run build",
     "test": "vitest",
     "coverage": "vitest run --coverage",

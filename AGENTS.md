@@ -16,6 +16,8 @@
 - Global link (optional): `pnpm link --global` then use `aicp`.
 - Quick examples: `aicp scan . --by-dir`, `aicp copy . --max-tokens 120000`, `aicp tui .`.
 
+ Note: After making changes that require compilation (TypeScript or build‑affecting config), always run `pnpm run build` (aka `pnpm build`) to refresh `dist/` before using `pnpm start` or the globally linked `aicp`.
+
 ## Coding Style & Naming Conventions
 - Language: TypeScript (strict), ESM (`type: module`, `moduleResolution: NodeNext`).
 - Indentation: 2 spaces; include semicolons; prefer single quotes or consistent string style.

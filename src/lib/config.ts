@@ -42,6 +42,7 @@ export const DEFAULT_CONFIG: Required<Omit<AicpConfig, "profiles" | "prompt" | "
   include: ["**/*"],
   exclude: [
     "**/{node_modules,dist,build,.git,.next,.cache,coverage}/**",
+    "**/.aicpignore",
     "**/*.{png,jpg,jpeg,gif,webp,svg,ico,bmp,pdf,zip,tgz,gz,rar,7z,mp3,mp4,ogg,webm,avi,mov,exe,dll,dylib,so,wasm,woff,woff2,ttf,eot}",
     "**/*.min.{js,css}",
     "**/*.lock",

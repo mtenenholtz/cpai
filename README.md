@@ -169,6 +169,55 @@ Troubleshooting
 - No clipboard? Use o to write to a file, or ensure OSC52 passthrough is enabled (tmux) or a system clipboard tool is installed.
 - Small terminal? Increase size; the TUI needs roughly 68×12 or larger.
 
+### TUI extras
+
+New flags & features:
+
+Start with prompts prefilled
+
+```bash
+aicp tui . --prompt "Refactor for clarity"
+# or
+aicp tui . --prompt-file .prompt.txt
+```
+
+Pick saved prompts (multi-select)
+
+Place `.md`, `.txt`, or `.prompt` files in `./prompts/` or `./.aicp/prompts/`, then:
+
+```bash
+aicp tui . --prompts-dir ./prompts --pick-prompts
+```
+
+In the UI:
+- `p` edits an ad‑hoc prompt (included at top & bottom).
+- `P` opens a Prompts Picker (space to toggle, `v` to preview, Enter to apply).
+- Saved prompts + ad‑hoc are composed together into one `<PROMPT>` block.
+
+Layout & Tabs
+- Click the tab bar or press keys to switch: `Tree`, `Flat`, `Rank`, `Details`, `Prompts`.
+- `L` toggles Auto/Horizontal/Vertical layouts (Auto picks vertical for narrow terminals).
+- Status bar shows token count vs budget when set.
+
+Tree & Rankings
+- Files/dirs show aligned token counts.
+- `F2` cycles the tree metric column (tokens/bytes/lines).
+- `h` mutes the selected file/dir from Rankings only (does not affect packing).
+- `H` clears all mutes.
+
+Copy/Write still honor selection
+- Muting only affects the Top lists. Use Space, A/N/V (include/exclude) to control what gets packed.
+
+CLI cheatsheet
+
+```text
+? Help  / Filter  Space Toggle  A All  N None  V Invert
+i include  x exclude  g .gitignore  a .aicpignore  . Hidden
+b Budget  s Sort  m Format  e XML  t Tags
+p Prompt  P Prompts  h/H mute rankings  F2 metric
+L Layout  o Write  c Copy  r Rescan  q Quit
+```
+
 ---
 
 ## Profiles and Prompt Injection

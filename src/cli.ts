@@ -337,9 +337,32 @@ program
   .command("tui [dir]")
   .description("Interactive TUI to browse, filter, and bundle files")
   .option("-C, --cwd <dir>", "working directory (defaults to dir)", "")
+  .option("--prompt <text>", "prefill an ad-hoc prompt", "")
+  .option("--prompt-file <path>", "prefill a prompt from a file")
+  .option(
+    "--prompts-dir <dir>",
+    "directory of saved prompts to pick (default: ./prompts or ./.aicp/prompts)"
+  )
+  .option("--pick-prompts", "open saved prompts picker on launch", false)
   .action(async (dirArg, opts) => {
     const cwd = path.resolve(process.cwd(), opts.cwd || dirArg || ".");
-    await runTui(cwd);
+    let promptText: string | undefined = undefined;
+    if (opts.promptFile) {
+      try {
+        const p = path.isAbsolute(opts.promptFile) ? opts.promptFile : path.join(cwd, opts.promptFile);
+        promptText = await fs.readFile(p, "utf8");
+      } catch (e: any) {
+        console.error(chalk.yellow(`Failed to read --prompt-file: ${e?.message ?? e}`));
+      }
+    }
+    if (opts.prompt) {
+      promptText = String(opts.prompt);
+    }
+    await runTui(cwd, {
+      promptText,
+      promptsDir: opts.promptsDir ? String(opts.promptsDir) : undefined,
+      openPromptPicker: !!opts.pickPrompts
+    });
   });
 
 program.parseAsync(process.argv);
