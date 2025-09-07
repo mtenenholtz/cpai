@@ -188,6 +188,9 @@ export function PromptEditor(props: {
     if (key.ctrl && (input === 'q' || input === 'Q')) { props.onCancel(); return; }
     if (key.ctrl && key.return) { props.onSubmit(joinLines(lines)); return; }
 
+    // Normalize Backspace across terminals (DEL 0x7F or BS 0x08)
+    const isBackspaceKey = key.backspace || input === '\u0008' || input === '\u007F' || input === '\b' || input === '\x7f';
+
     // Cursor movement
     if (key.leftArrow) { setCursor(row, Math.max(0, col - 1)); return; }
     if (key.rightArrow) { setCursor(row, col + 1); return; }
@@ -199,7 +202,7 @@ export function PromptEditor(props: {
 
     // Editing
     if (key.return) { insertText('\n'); return; }
-    if (key.backspace) { backspace(); return; }
+    if (isBackspaceKey) { backspace(); return; }
     if (key.delete) { del(); return; }
     if (key.tab) { insertText('  '); return; }
 
