@@ -10,7 +10,7 @@ import { ensureEncoder } from "./lib/tokenizer.js";
 import { formatOutput, packFilesToBudget, renderJson, formatXml, formatTags, wrapWithPrompt } from "./lib/format.js";
 import { extnameLower, humanBytes, sortBy, toPosix, padPlain } from "./lib/utils.js";
 import type { CopyOptions, ScanOptions } from "./types.js";
-import { runTui } from "./tui.js";
+import { getTuiAdapter } from "./ui/adapter.js";
 
 const program = new Command();
 // Friendlier error UX
@@ -344,6 +344,7 @@ program
     "directory of saved prompts to pick (default: ./prompts or ./.aicp/prompts)"
   )
   .option("--pick-prompts", "open saved prompts picker on launch", false)
+  .option("--ui <ui>", "UI backend: ink | blessed", "blessed")
   .action(async (dirArg, opts) => {
     const cwd = path.resolve(process.cwd(), opts.cwd || dirArg || ".");
     let promptText: string | undefined = undefined;
@@ -358,11 +359,19 @@ program
     if (opts.prompt) {
       promptText = String(opts.prompt);
     }
-    await runTui(cwd, {
-      promptText,
-      promptsDir: opts.promptsDir ? String(opts.promptsDir) : undefined,
-      openPromptPicker: !!opts.pickPrompts
-    });
+    const uiKind = String(opts.ui) === 'ink' ? 'ink' : 'blessed';
+    try {
+      const adapter = await getTuiAdapter(uiKind);
+      await adapter.run({
+        cwd,
+        promptText,
+        promptsDir: opts.promptsDir ? String(opts.promptsDir) : undefined,
+        openPromptPicker: !!opts.pickPrompts
+      });
+    } catch (e: any) {
+      console.error(chalk.red(e?.message ?? e));
+      process.exitCode = 1;
+    }
   });
 
 program.parseAsync(process.argv);

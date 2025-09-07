@@ -37,19 +37,23 @@
     "chalk": "^5.6.0",
     "clipboardy": "^4.0.0",
     "commander": "^12.1.0",
-    "globby": "^14.1.0"
+    "globby": "^14.1.0",
+    "ink": "^5.2.1",
+    "ink-text-input": "^6",
+    "react": "^18"
   },
   "devDependencies": {
     "@types/blessed": "^0.1.25",
     "@types/node": "^22.18.1",
+    "@types/react": "^18",
     "@typescript-eslint/eslint-plugin": "^8.6.0",
     "@typescript-eslint/parser": "^8.6.0",
+    "@vitest/coverage-v8": "^2.0.5",
     "eslint": "^9.9.0",
     "eslint-config-prettier": "^9.1.0",
     "prettier": "^3.3.3",
-    "vitest": "^2.0.5",
-    "@vitest/coverage-v8": "^2.0.5",
     "tsx": "^4.20.5",
-    "typescript": "^5.9.2"
+    "typescript": "^5.9.2",
+    "vitest": "^2.0.5"
   }
 }
