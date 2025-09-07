@@ -105,6 +105,26 @@ export function PromptEditor(props: {
     }
   }
 
+  function moveWordForward() {
+    const s = lines[row] ?? '';
+    let i = col;
+    // If currently on word chars, skip to end
+    while (i < s.length && isWordChar(s[i])) i++;
+    // Skip following whitespace to the start of next word
+    while (i < s.length && /\s/.test(s[i])) i++;
+    setCursor(row, i);
+  }
+
+  function moveWordBack() {
+    const s = lines[row] ?? '';
+    let i = col;
+    // Skip whitespace to the left
+    while (i > 0 && /\s/.test(s[i - 1])) i--;
+    // Skip word chars to the left
+    while (i > 0 && isWordChar(s[i - 1])) i--;
+    setCursor(row, i);
+  }
+
   function backspace() {
     if (col > 0) {
       const L = [...lines];
@@ -164,7 +184,8 @@ export function PromptEditor(props: {
   useInput((input, key) => {
     // Save / Cancel
     if (key.ctrl && (input === 's' || input === 'S')) { props.onSubmit(joinLines(lines)); return; }
-    if ((key.ctrl && (input === 'q' || input === 'Q')) || key.escape) { props.onCancel(); return; }
+    if (key.escape) { props.onSubmit(joinLines(lines)); return; }
+    if (key.ctrl && (input === 'q' || input === 'Q')) { props.onCancel(); return; }
     if (key.ctrl && key.return) { props.onSubmit(joinLines(lines)); return; }
 
     // Cursor movement
@@ -173,6 +194,8 @@ export function PromptEditor(props: {
     if (key.upArrow) { setCursor(Math.max(0, row - 1), col); return; }
     if (key.downArrow) { setCursor(Math.min(lines.length - 1, row + 1), col); return; }
     // Home/End can be reached via Ctrl+A / Ctrl+E below
+    if (input === 'W') { moveWordForward(); return; } // Shift+W
+    if (input === 'B') { moveWordBack(); return; }    // Shift+B
 
     // Editing
     if (key.return) { insertText('\n'); return; }
