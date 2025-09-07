@@ -74,7 +74,7 @@ export async function runTui(cwd: string, initial?: { promptText?: string; promp
       "Tree": () => { state.treeMode = true; refreshList(true); list.focus(); },
       "Flat": () => { state.treeMode = false; refreshList(true); list.focus(); },
       "Details": () => { toggleRankDetails(); },
-      "Prompts": async () => { await showPromptPicker(); }
+      "Prompts (P)": async () => { await showPromptPicker(); }
     }
   } as any);
 

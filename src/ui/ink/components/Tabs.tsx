@@ -7,7 +7,7 @@ export function Tabs(props: { active: TabId; onSelect: (id: TabId) => void }) {
   const tabs: { id: TabId; label: string }[] = [
     { id: 'tree', label: 'Tree' },
     { id: 'flat', label: 'Flat' },
-    { id: 'prompts', label: 'Prompts' },
+    { id: 'prompts', label: 'Prompts (Ctrl+P)' },
   ];
   return (
     <Box>

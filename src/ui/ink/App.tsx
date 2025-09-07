@@ -136,6 +136,7 @@ export function App(props: {cwd: string; promptText?: string; promptsDir?: strin
     }
     // Hotkeys only; numeric shortcuts disabled
     if (key.ctrl && input === 'p') { setShowPromptsPicker(true); return; }
+    if (input === 'P') { setShowPromptsPicker(true); return; }
     if (key.ctrl && input === 'c') { exit(); return; }
     if (input === 'q') { exit(); return; }
     if (key.ctrl && input === 'r') {
