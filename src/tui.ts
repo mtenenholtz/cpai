@@ -3,6 +3,7 @@ import chalk from "chalk";
 import path from "node:path";
 import fs from "node:fs/promises";
 import clipboard from "clipboardy";
+import { globby } from "globby";
 import { scan, scanConcurrent } from "./lib/scan.js";
 import { loadAicpConfig, DEFAULT_CONFIG } from "./lib/config.js";
 import { ensureEncoder } from "./lib/tokenizer.js";
@@ -47,6 +48,8 @@ type State = {
   selectedPrompts: Set<string>;
   // layout emphasis: when true, give right pane more width
   emphasizeRight: boolean;
+  // auto-deselections from .aicpignore (still visible, just not selected)
+  autoDeselected: Set<string>;
 };
 
 type SavedPrompt = { name: string; path: string; text: string };
@@ -82,6 +85,8 @@ function makeDefaultState(cwd: string, fileCfg: any): State {
     availablePrompts: [],
     selectedPrompts: new Set(),
     emphasizeRight: false
+    ,
+    autoDeselected: new Set()
   };
 }
 
@@ -92,7 +97,8 @@ async function rescan(state: State, onProgress?: (done: number, total: number) =
     include: state.include,
     exclude: state.exclude,
     useGitignore: state.useGitignore,
-    useAicpIgnore: state.useAicpIgnore,
+    // Always list everything; we'll apply .aicpignore as auto-deselect, not hide
+    useAicpIgnore: false,
     hidden: state.hidden,
     maxBytesPerFile: state.maxBytesPerFile,
     model: state.model,
@@ -102,6 +108,43 @@ async function rescan(state: State, onProgress?: (done: number, total: number) =
   const list = result.files.filter((f) => !f.skipped);
   state.files = list;
   if (state.selectedIdx >= list.length) state.selectedIdx = Math.max(0, list.length - 1);
+
+  // Compute autoDeselected from .aicpignore (visible but off by default)
+  const auto = new Set<string>();
+  if (state.useAicpIgnore) {
+    try {
+      const raw = await fs.readFile(path.join(state.cwd, ".aicpignore"), "utf8");
+      const extra = raw
+        .split(/\r?\n/)
+        .map((l) => l.trim())
+        .filter((l) => l && !l.startsWith("#"));
+      if (extra.length) {
+        const patterns = state.include.length ? state.include : ["**/*"];
+        const all = await globby(patterns, {
+          cwd: state.cwd,
+          gitignore: state.useGitignore,
+          ignore: state.exclude,
+          dot: state.hidden,
+          onlyFiles: true,
+          followSymbolicLinks: false
+        });
+        const kept = await globby(patterns, {
+          cwd: state.cwd,
+          gitignore: state.useGitignore,
+          ignore: [...state.exclude, ...extra],
+          dot: state.hidden,
+          onlyFiles: true,
+          followSymbolicLinks: false
+        });
+        const keptSet = new Set(kept.map((p) => p.split(path.sep).join("/")));
+        for (const p of all) {
+          const px = p.split(path.sep).join("/");
+          if (!keptSet.has(px)) auto.add(px);
+        }
+      }
+    } catch {}
+  }
+  state.autoDeselected = auto;
 }
 
 function renderFileLine(f: FileEntry, excluded: boolean): string {
@@ -213,7 +256,8 @@ function renderTreeLine(v: VisibleNode, metric: State["treeMetric"]): string {
 
 function buildEligible(state: State): FileEntry[] {
   const s = state.manualExcluded;
-  return state.files.filter((f) => !s.has(f.relPath));
+  const auto = state.autoDeselected;
+  return state.files.filter((f) => !s.has(f.relPath) && !auto.has(f.relPath));
 }
 
 function composePrompt(state: State): string | undefined {
@@ -296,6 +340,18 @@ export async function runTui(cwd: string, initial?: { promptText?: string; promp
   await rescan(state);
 
   const screen = blessed.screen({ smartCSR: true, title: "aicp — TUI" });
+
+  // Graceful shutdown helper (handles Ctrl+C anywhere)
+  let exiting = false;
+  function gracefulExit(code = 0) {
+    if (exiting) return;
+    exiting = true;
+    try { screen.destroy(); } catch {}
+    // ensure stdout ends with newline to avoid broken prompt
+    try { if (process.stdout.write) process.stdout.write("\n"); } catch {}
+    process.exit(code);
+  }
+  process.on('SIGINT', () => gracefulExit(0));
 
   const help = "? Help  / Filter  Space Toggle  A All  N None  V Invert  i include  x exclude  g .gitignore  a .aicpignore  . Hidden  b Budget  p EditPrompt  P Prompts  h/l Fold/Unfold  H clear mutes  d Toggle Details  w Swap Focus  L Layout  F2 Metric  o Write  c Copy  Ctrl‑R Rescan  s Sort  m Format  e XML  t Tags  q Quit";
 
@@ -551,6 +607,7 @@ export async function runTui(cwd: string, initial?: { promptText?: string; promp
   promptBar.on('blur', () => { syncPromptFromBar(); recomputePromptHeight(); });
   promptBar.on('keypress', (_ch, key) => {
     setTimeout(recomputePromptHeight, 0);
+    if (key.full === 'C-c') { gracefulExit(0); return; }
     if (key.name === 'escape') { (promptBar as any).cancel(); list.focus(); }
   });
 
@@ -584,6 +641,9 @@ export async function runTui(cwd: string, initial?: { promptText?: string; promp
     const eligible = buildEligible(state);
     const metric = state.treeMetric;
     const maxMetric = Math.max(1, ...(eligible.length ? eligible : state.files).map((f) => metricOfFile(f, metric)));
+    // Update Files pane label with current selected token sum
+    const selectedTokens = eligible.reduce((a, f) => a + f.tokens, 0);
+    list.setLabel(` Files (✔ included / ✖ excluded) — tokens=${selectedTokens} `);
     if (full) {
       const count = visibleCount();
       let lines: string[] = [];
@@ -599,7 +659,7 @@ export async function runTui(cwd: string, initial?: { promptText?: string; promp
         (refreshList as any)._vis = vis; // stash for key handlers
       } else {
         const slice = state.files.slice(viewTop, viewTop + count);
-        lines = slice.map((f) => renderFileLine(f, state.manualExcluded.has(f.relPath)));
+        lines = slice.map((f) => renderFileLine(f, state.manualExcluded.has(f.relPath) || state.autoDeselected.has(f.relPath)));
       }
       list.setItems(lines);
     }
@@ -620,6 +680,7 @@ export async function runTui(cwd: string, initial?: { promptText?: string; promp
       // hide rank lists when not in rank view
       rankFilesList.hide();
       rankDirsList.hide();
+      // Details label (no token sum here; shown on Files pane only)
       info.setLabel(" Details ");
       updateFocusStyles();
 
@@ -630,7 +691,7 @@ export async function runTui(cwd: string, initial?: { promptText?: string; promp
         if (!node) { info.setContent("(no selection)"); return; }
         if (node.kind === "file") {
           const f = node.file;
-          const excluded = state.manualExcluded.has(f.relPath);
+          const excluded = state.manualExcluded.has(f.relPath) || state.autoDeselected.has(f.relPath);
           const lines = [
             chalk.bold(f.relPath),
             `bytes=${humanBytes(f.bytes)}  lines=${f.lines}  tokens=${f.tokens}  ${excluded ? "EXCLUDED" : "INCLUDED"}`
@@ -643,7 +704,7 @@ export async function runTui(cwd: string, initial?: { promptText?: string; promp
           let bytes = 0, lines = 0, tokens = 0, included = 0;
           for (const f of files) {
             bytes += f.bytes; lines += f.lines; tokens += f.tokens;
-            if (!state.manualExcluded.has(f.relPath)) included += 1;
+            if (!state.manualExcluded.has(f.relPath) && !state.autoDeselected.has(f.relPath)) included += 1;
           }
           const linesOut = [
             chalk.bold((node.node.path === "." ? "." : node.node.path) + "/"),
@@ -657,7 +718,7 @@ export async function runTui(cwd: string, initial?: { promptText?: string; promp
       // Flat mode details: selectedIdx maps to state.files
       const f = state.files[state.selectedIdx];
       if (!f) { info.setContent("(no files)"); return; }
-      const excluded = state.manualExcluded.has(f.relPath);
+      const excluded = state.manualExcluded.has(f.relPath) || state.autoDeselected.has(f.relPath);
       const lines = [
         chalk.bold(f.relPath),
         `bytes=${humanBytes(f.bytes)}  lines=${f.lines}  tokens=${f.tokens}  ${excluded ? "EXCLUDED" : "INCLUDED"}`
@@ -798,7 +859,7 @@ export async function runTui(cwd: string, initial?: { promptText?: string; promp
   }
 
   // Keybindings
-  screen.key(["q", "C-c"], () => screen.destroy());
+  screen.key(["q", "C-c"], () => gracefulExit(0));
   list.key(["up", "k"], () => {
     if (state.selectedIdx > 0) state.selectedIdx--;
     refreshList(false);
