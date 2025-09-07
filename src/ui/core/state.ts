@@ -1,7 +1,7 @@
 import { DEFAULT_CONFIG, loadAicpConfig } from '../../lib/config.js';
 import type { FileEntry } from '../../types.js';
 
-export type SavedPrompt = { name: string; path: string; text: string };
+export type SavedPrompt = { name: string; path: string; text: string; origin: 'project' | 'global' };
 
 export type State = {
   cwd: string;
@@ -78,4 +78,3 @@ export function makeDefaultState(cwd: string, fileCfg: any): State {
     autoDeselected: new Set(),
   };
 }
-

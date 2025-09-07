@@ -10,7 +10,7 @@ export function PromptsPicker(props: {
   onApply: (names: string[]) => void;
   onCancel: () => void;
 }) {
-  const items = useMemo(() => props.prompts.map((p) => p.name), [props.prompts]);
+  const items = useMemo(() => props.prompts.map((p) => ({ name: p.name, origin: p.origin })), [props.prompts]);
   const [idx, setIdx] = useState(0);
   const [sel, setSel] = useState<Set<string>>(new Set(props.initialSelected));
 
@@ -20,7 +20,7 @@ export function PromptsPicker(props: {
     if (input === 'j' || key.downArrow) setIdx((i) => Math.min(items.length - 1, i + 1));
     if (input === 'k' || key.upArrow) setIdx((i) => Math.max(0, i - 1));
     if (input === ' ') {
-      const name = items[idx];
+      const name = items[idx]?.name;
       if (!name) return;
       const next = new Set(sel);
       if (next.has(name)) next.delete(name); else next.add(name);
@@ -38,15 +38,15 @@ export function PromptsPicker(props: {
       <Box flexDirection="column">
         {visible.length === 0 ? (
           <Text dimColor>(no saved prompts found)</Text>
-        ) : visible.map((name, i) => {
+        ) : visible.map((item, i) => {
           const isSel = i === idx;
-          const mark = sel.has(name) ? 'x' : ' ';
+          const mark = sel.has(item.name) ? 'x' : ' ';
+          const scope = item.origin === 'global' ? ' (global)' : '';
           return (
-            <Text key={name} inverse={isSel}>[{mark}] {name}</Text>
+            <Text key={item.name} inverse={isSel}>[{mark}] {item.name}{scope}</Text>
           );
         })}
       </Box>
     </Box>
   );
 }
-

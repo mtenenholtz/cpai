@@ -59,7 +59,7 @@ export async function runTui(cwd: string, initial?: { promptText?: string; promp
   }
   process.on('SIGINT', () => gracefulExit(0));
 
-  const help = "? Help  3 Prompts  / Filter  Space Toggle  A All  N None  V Invert  i include  x exclude  g .gitignore  a .aicpignore  . Hidden  b Budget  p EditPrompt  P Prompts  h/l Fold/Unfold  H clear mutes  d Toggle Details  w Swap Focus  L Layout  F2 Metric  o Write  c Copy  Ctrl‑R Rescan  s Sort  m Format  e XML  t Tags  q Quit";
+  const help = "? Help  / Filter  Space Toggle  A All  N None  V Invert  i include  x exclude  g .gitignore  a .aicpignore  . Hidden  b Budget  p EditPrompt  P Prompts  h/l Fold/Unfold  H clear mutes  d Toggle Details  w Swap Focus  L Layout  F2 Metric  o Write  c Copy  Ctrl‑R Rescan  s Sort  m Format  e XML  t Tags  q Quit";
 
   const tabs = blessed.listbar({
     parent: screen,
@@ -283,8 +283,8 @@ export async function runTui(cwd: string, initial?: { promptText?: string; promp
     screen.render();
   }
   cheatsheet.key(["escape", "enter", "q", "?", "f1"], () => toggleCheatsheet(false));
-  // Numeric shortcut for prompts picker
-  screen.key(["3"], async () => { await showPromptPicker(); });
+  // Hotkey for prompts picker
+  screen.key(["P"], async () => { await showPromptPicker(); });
 
   // Status helpers
   function setStatus(msgTop: string, msgBottom?: string) {
@@ -777,7 +777,10 @@ export async function runTui(cwd: string, initial?: { promptText?: string; promp
       const box = blessed.box({ parent: screen, top: "center", left: "center", width: "70%", height: "70%", border: { type: "line" }, label: " Prompts (space=toggle, v=preview, Enter=apply, Esc=cancel) ", keys: true, mouse: true });
       const lst = blessed.list({ parent: box, top: 0, left: 0, width: "100%", height: "100%", keys: true, vi: true, mouse: true, style: { selected: { inverse: true } } });
       function renderItems() {
-        const items = state.availablePrompts.map((p) => `[${state.selectedPrompts.has(p.name) ? "x" : " "}] ${p.name}`);
+        const items = state.availablePrompts.map((p) => {
+          const scope = (p as any).origin === 'global' ? ' (global)' : '';
+          return `[${state.selectedPrompts.has(p.name) ? "x" : " "}] ${p.name}${scope}`;
+        });
         lst.setItems(items.length ? items : ["(no saved prompts found)"]); screen.render();
       }
       renderItems();

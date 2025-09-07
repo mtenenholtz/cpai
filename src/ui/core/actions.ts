@@ -6,6 +6,7 @@ import { ensureEncoder } from '../../lib/tokenizer.js';
 import { scanConcurrent } from '../../lib/scan.js';
 import { formatOutput, formatTags, formatXml, packFilesToBudget, wrapWithPrompt } from '../../lib/format.js';
 import type { State, SavedPrompt } from './state.js';
+import os from 'node:os';
 
 export async function rescan(
   state: State,
@@ -121,7 +122,15 @@ export async function renderPackedText(
 }
 
 export async function loadSavedPrompts(cwd: string, dirHint?: string): Promise<SavedPrompt[]> {
-  const candidates = [dirHint ? path.resolve(cwd, dirHint) : null, path.join(cwd, '.aicp/prompts'), path.join(cwd, 'prompts')] as (string | null)[];
+  const home = os.homedir?.() || process.env.HOME || process.env.USERPROFILE || '';
+  const globalDir = home ? path.join(home, '.aicp', 'prompts') : null;
+  // Prefer project prompts first so they win on name conflicts
+  const candidates = [
+    dirHint ? path.resolve(cwd, dirHint) : null,
+    path.join(cwd, '.aicp/prompts'),
+    path.join(cwd, 'prompts'),
+    globalDir
+  ] as (string | null)[];
   const out: SavedPrompt[] = [];
   for (const c of candidates) {
     if (!c) continue;
@@ -133,7 +142,8 @@ export async function loadSavedPrompts(cwd: string, dirHint?: string): Promise<S
         if (!['.md', '.txt', '.prompt'].includes(ext)) continue;
         const p = path.join(c, d.name);
         const text = await fs.readFile(p, 'utf8');
-        out.push({ name: path.basename(d.name, ext), path: p, text });
+        const origin: 'project' | 'global' = globalDir && p.startsWith(globalDir) ? 'global' : 'project';
+        out.push({ name: path.basename(d.name, ext), path: p, text, origin });
       }
     } catch {}
   }
@@ -141,4 +151,3 @@ export async function loadSavedPrompts(cwd: string, dirHint?: string): Promise<S
   for (const p of out) if (!map.has(p.name)) map.set(p.name, p);
   return [...map.values()].sort((a, b) => a.name.localeCompare(b.name));
 }
-

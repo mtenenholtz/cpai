@@ -134,10 +134,8 @@ export function App(props: {cwd: string; promptText?: string; promptsDir?: strin
       if (key.escape) setFocusPrompt(false);
       return;
     }
-    // Numeric tab shortcuts 1-4
-    if (input === '1') { state.treeMode = true; bump(state); return; }
-    if (input === '2') { state.treeMode = false; bump(state); return; }
-    if (input === '3') { setShowPromptsPicker(true); return; }
+    // Hotkeys only; numeric shortcuts disabled
+    if (key.ctrl && input === 'p') { setShowPromptsPicker(true); return; }
     if (key.ctrl && input === 'c') { exit(); return; }
     if (input === 'q') { exit(); return; }
     if (key.ctrl && input === 'r') {
