@@ -1,0 +1,54 @@
+{
+  "name": "aicp",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Bulk copy code/files to paste into an LLM, with token inspection & include/exclude controls.",
+  "bin": {
+    "aicp": "./dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsx src/cli.ts --help",
+    "start": "node dist/cli.js",
+    "prepare": "pnpm run build",
+    "test": "vitest",
+    "coverage": "vitest run --coverage",
+    "lint": "eslint . --ext .ts",
+    "lint:fix": "eslint . --ext .ts --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "engines": {
+    "node": ">=18.18"
+  },
+  "license": "MIT",
+  "keywords": [
+    "cli",
+    "tokens",
+    "llm",
+    "copy",
+    "tiktoken"
+  ],
+  "dependencies": {
+    "@dqbd/tiktoken": "^1.0.22",
+    "binary-extensions": "^2.3.0",
+    "blessed": "^0.1.81",
+    "chalk": "^5.6.0",
+    "clipboardy": "^4.0.0",
+    "commander": "^12.1.0",
+    "globby": "^14.1.0"
+  },
+  "devDependencies": {
+    "@types/blessed": "^0.1.25",
+    "@types/node": "^22.18.1",
+    "@typescript-eslint/eslint-plugin": "^8.6.0",
+    "@typescript-eslint/parser": "^8.6.0",
+    "eslint": "^9.9.0",
+    "eslint-config-prettier": "^9.1.0",
+    "prettier": "^3.3.3",
+    "vitest": "^2.0.5",
+    "@vitest/coverage-v8": "^2.0.5",
+    "tsx": "^4.20.5",
+    "typescript": "^5.9.2"
+  }
+}
