@@ -14,9 +14,6 @@ importers:
       binary-extensions:
         specifier: ^2.3.0
         version: 2.3.0
-      blessed:
-        specifier: ^0.1.81
-        version: 0.1.81
       chalk:
         specifier: ^5.6.0
         version: 5.6.0
@@ -39,9 +36,9 @@ importers:
         specifier: ^18
         version: 18.3.1
     devDependencies:
-      '@types/blessed':
-        specifier: ^0.1.25
-        version: 0.1.25
+      '@eslint/js':
+        specifier: ^9.35.0
+        version: 9.35.0
       '@types/node':
         specifier: ^22.18.1
         version: 22.18.1
@@ -58,7 +55,7 @@ importers:
         specifier: ^2.0.5
         version: 2.1.9(vitest@2.1.9(@types/node@22.18.1))
       eslint:
-        specifier: ^9.9.0
+        specifier: ^9.35.0
         version: 9.35.0
       eslint-config-prettier:
         specifier: ^9.1.0
@@ -603,9 +600,6 @@ packages:
     resolution: {integrity: sha512-LtoMMhxAlorcGhmFYI+LhPgbPZCkgP6ra1YL604EeF6U98pLlQ3iWIGMdWSC+vWmPBWBNgmDBAhnAobLROJmwg==}
     engines: {node: '>=18'}
 
-  '@types/blessed@0.1.25':
-    resolution: {integrity: sha512-kQsjBgtsbJLmG6CJA+Z6Nujj+tq1fcSE3UIowbDvzQI4wWmoTV7djUDhSo5lDjgwpIN0oRvks0SA5mMdKE5eFg==}
-
   '@types/estree@1.0.8':
     resolution: {integrity: sha512-dWHzHa2WqEXI/O1E9OjrocMTKJl2mSrEolh1Iomrv6U+JuNwaHXsXx9bLu5gG7BUWFIN0skIQJQ/L1rIex4X6w==}
 
@@ -768,11 +762,6 @@ packages:
   binary-extensions@2.3.0:
     resolution: {integrity: sha512-Ceh+7ox5qe7LJuLHoY0feh3pHuUDHAcRUeyL2VYghZwfpkNIy/+8Ocg0a3UuSoYzavmylwuLWQOf3hl0jjMMIw==}
     engines: {node: '>=8'}
-
-  blessed@0.1.81:
-    resolution: {integrity: sha512-LoF5gae+hlmfORcG1M5+5XZi4LBmvlXTzwJWzUlPryN/SJdSflZvROM2TwkT0GMpq7oqT48NRd4GS7BiVBc5OQ==}
-    engines: {node: '>= 0.8.0'}
-    hasBin: true
 
   brace-expansion@1.1.12:
     resolution: {integrity: sha512-9T9UjW3r0UW5c1Q7GTwllptXwhvYmEzFhzMfZ9H7FQWt+uZePjZPjBP/W1ZEyZ1twGWom5/56TF4lPcqjnDHcg==}
@@ -1977,10 +1966,6 @@ snapshots:
 
   '@sindresorhus/merge-streams@2.3.0': {}
 
-  '@types/blessed@0.1.25':
-    dependencies:
-      '@types/node': 22.18.1
-
   '@types/estree@1.0.8': {}
 
   '@types/json-schema@7.0.15': {}
@@ -2183,8 +2168,6 @@ snapshots:
   balanced-match@1.0.2: {}
 
   binary-extensions@2.3.0: {}
-
-  blessed@0.1.81: {}
 
   brace-expansion@1.1.12:
     dependencies:

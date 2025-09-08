@@ -1,13 +1,16 @@
 // Light wrapper around @dqbd/tiktoken to centralize model/encoding handling.
-import type { Tiktoken } from "@dqbd/tiktoken";
+import type { Tiktoken } from '@dqbd/tiktoken';
 
 let encoder: Tiktoken | null = null;
 
-type TiktokenModule = typeof import("@dqbd/tiktoken");
+type TiktokenModule = {
+  get_encoding: (name: any) => Tiktoken;
+  encoding_for_model?: (model: any) => Tiktoken;
+};
 
 let modPromise: Promise<TiktokenModule> | null = null;
 async function loadModule(): Promise<TiktokenModule> {
-  if (!modPromise) modPromise = import("@dqbd/tiktoken");
+  if (!modPromise) modPromise = import('@dqbd/tiktoken') as unknown as Promise<TiktokenModule>;
   return modPromise;
 }
 
@@ -60,4 +63,3 @@ export async function countTokens(text: string): Promise<number> {
   // encoder.encode returns a Uint32Array; length is the token count
   return enc.encode(text).length;
 }
-

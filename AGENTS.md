@@ -19,6 +19,16 @@
 - Global link (optional): `pnpm link --global` then use `cpai`.
 - Quick examples: `cpai scan . --by-dir`, `cpai copy . --max-tokens 120000`, `cpai tui .`.
 
+### Linting, Formatting, and Type Checks (required during development)
+- `pnpm run lint` — run ESLint (ESLint v9 flat config, TS + TSX, type-aware).
+- `pnpm run lint:fix` — auto-fix linter issues where possible.
+- `pnpm run format` — Prettier write across the repo.
+- `pnpm run format:check` — Prettier check only.
+- `pnpm run typecheck` — TypeScript `--noEmit` project check.
+- `pnpm run check` — runs `lint`, `format:check`, and `typecheck`.
+
+Policy: Always run `pnpm run check` locally before pushing or opening a PR. Keep diffs clean by running `pnpm run lint:fix && pnpm run format` as you iterate.
+
  Note: After making changes that require compilation (TypeScript or build‑affecting config), always run `pnpm run build` (aka `pnpm build`) to refresh `dist/` before using `pnpm start` or the globally linked `cpai`.
 
 ## Coding Style & Naming Conventions
@@ -27,7 +37,7 @@
 - Exports: prefer named exports; avoid default exports for libraries in `src/lib/`.
 - Filenames: lowercase, short; prefer `kebab-case` if multiword (e.g., `file-picker.ts`).
 - Types/Interfaces use `PascalCase`; variables/functions use `camelCase`.
-- No linter configured; follow existing style. If adding tooling, prefer ESLint + Prettier with minimal rules.
+- Linters/Formatters: ESLint v9 (flat config in `eslint.config.js`) and Prettier are configured. Prefer minimal rule additions and keep stylistic rules delegated to Prettier.
 
 ## Testing Guidelines
 - Vitest is configured (see `package.json`).

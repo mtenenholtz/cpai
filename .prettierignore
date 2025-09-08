@@ -2,3 +2,7 @@ dist/
 node_modules/
 coverage/
 
+# lockfiles and generated metadata
+pnpm-lock.yaml
+yarn.lock
+package-lock.json
