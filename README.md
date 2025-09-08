@@ -120,7 +120,7 @@ This will produce something like:
 
 If you have saved prompts configured (via `selectedPrompts` or the TUI picker), you’ll see `<PROMPT name="…">…</PROMPT>` blocks at the top; only `<INSTRUCTIONS>` is duplicated at the end.
 
-````text
+```text
 <INSTRUCTIONS>
 Briefly state the goal or task for the model.
 </INSTRUCTIONS>
@@ -148,7 +148,7 @@ project/
 <INSTRUCTIONS>
 Briefly state the goal or task for the model.
 </INSTRUCTIONS>
-````
+```
 
 ---
 
