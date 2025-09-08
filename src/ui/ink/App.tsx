@@ -68,6 +68,7 @@ export function App(props: {cwd: string; promptText?: string; promptsDir?: strin
   const [focusPrompt, setFocusPrompt] = useState(false);
   const [editingPrompt, setEditingPrompt] = useState(false);
   const [statusMsg, setStatusMsg] = useState<string>('');
+  const [showRankNamePreview, setShowRankNamePreview] = useState(false);
   const [showPromptsPicker, setShowPromptsPicker] = useState(false);
   const filesBodyRef = useRef<any>(null);
   const ranksBodyRef = useRef<any>(null);
@@ -205,6 +206,8 @@ export function App(props: {cwd: string; promptText?: string; promptsDir?: strin
       }
       return;
     }
+    // Toggle full-name preview for Rankings entries
+    if (input === 'e' && focusPane === 'rankings') { setShowRankNamePreview((v) => !v); return; }
     if (input === 'l') {
       if (focusPane === 'files') {
         setFocusPane('rankings');
@@ -538,6 +541,15 @@ export function App(props: {cwd: string; promptText?: string; promptsDir?: strin
             onApply={(names) => { state.selectedPrompts = new Set(names); bump(state); setShowPromptsPicker(false); setStatusMsg('Prompts updated'); }}
             onCancel={() => { setShowPromptsPicker(false); setStatusMsg('Prompts selection canceled'); }}
           />
+        ) : showRankNamePreview && focusPane === 'rankings' ? (
+          <RankNamePreview
+            state={state}
+            rankIdx={rankIdx}
+            rankSide={rankSide}
+            width={safeCols}
+            height={midH}
+            onClose={() => setShowRankNamePreview(false)}
+          />
         ) : (() => {
           const totalCols = cols || 80;
           const leftWidth = Math.max(20, Math.floor(totalCols * (focusPane === 'files' ? 0.6 : 0.4)));
@@ -615,3 +627,48 @@ export function App(props: {cwd: string; promptText?: string; promptsDir?: strin
     </Box>
   );
 }
+
+// Simple modal to display the full name of the selected Rankings item
+const RankNamePreview: React.FC<{
+  state: State;
+  rankIdx: number;
+  rankSide: 'files' | 'dirs';
+  width: number;
+  height: number;
+  onClose: () => void;
+}> = ({ state, rankIdx, rankSide, width, height, onClose }) => {
+  // Compute rankings like RankingsPane does
+  const eligible0 = state.files.filter((f) => !state.manualExcluded.has(f.relPath) && !state.autoDeselected.has(f.relPath));
+  const mutedDirs = [...state.rankMutedDirs];
+  const isDirMuted = (p: string) => mutedDirs.some((d) => d === p || p.startsWith(d.endsWith('/') ? d : d + '/'));
+  const eligible = eligible0.filter((f) => !state.rankMutedFiles.has(f.relPath) && !isDirMuted(path.posix.dirname(f.relPath)));
+  const topFiles = [...eligible].sort((a, b) => b.tokens - a.tokens);
+  const byDir = new Map<string, number>();
+  for (const f of eligible) {
+    const d = path.posix.dirname(f.relPath);
+    byDir.set(d, (byDir.get(d) ?? 0) + f.tokens);
+  }
+  const topDirs = [...byDir.entries()].filter(([d]) => !isDirMuted(d)).sort((a, b) => b[1] - a[1]);
+
+  let label = '';
+  if (rankSide === 'files') {
+    const f = topFiles[rankIdx];
+    if (f) label = `File: ${f.relPath}  (tokens ${f.tokens})`;
+  } else {
+    const d = topDirs[rankIdx];
+    if (d) label = `Folder: ${d[0] || '.'}  (tokens ${d[1]})`;
+  }
+
+  // Close on Esc or e
+  useInput((input, key) => {
+    if (key.escape || input === 'e') onClose();
+  });
+
+  return (
+    <Box borderStyle="round" borderColor="cyan" paddingX={1} paddingY={0} flexDirection="column" height={Math.min(5, height)} width={width}>
+      <Box><Text color="cyan">Full Name</Text></Box>
+      <Box><Text>{label || '(none)'}</Text></Box>
+      <Box><Text dimColor>Press e or Esc to close</Text></Box>
+    </Box>
+  );
+};
