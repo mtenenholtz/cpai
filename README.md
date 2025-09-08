@@ -9,7 +9,7 @@ pnpm install
 pnpm run build
 pnpm link --global
 # now the `cpai` command is available globally
-````
+```
 
 Or run directly:
 
@@ -76,7 +76,7 @@ Create `.cpairc.json` (or put a `cpai` field in `package.json`):
 * Respect `.gitignore` by default, and add additional rules in `.cpaiignore`.
 * For legacy models, consider `--encoding cl100k_base`.
 
-````
+
 
 ---
 
@@ -88,7 +88,7 @@ Create `.cpairc.json` (or put a `cpai` field in `package.json`):
 pnpm install
 pnpm run build
 pnpm link --global
-````
+```
 
 2. **Explore your repo**
 
@@ -108,7 +108,7 @@ This will produce something like:
 ### src/index.ts
 ```ts
 // your file contents…
-````
+```
 
 ### src/utils.ts
 
@@ -116,7 +116,7 @@ This will produce something like:
 // …
 ```
 
-```
+````
 
 ---
 
