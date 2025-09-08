@@ -206,8 +206,8 @@ export function App(props: {cwd: string; promptText?: string; promptsDir?: strin
       }
       return;
     }
-    // Toggle full-name preview for Rankings entries
-    if (input === 'e' && focusPane === 'rankings') { setShowRankNamePreview((v) => !v); return; }
+    // Toggle full-name preview for Rankings entries (e/E)
+    if ((input === 'e' || input === 'E') && focusPane === 'rankings') { setShowRankNamePreview((v) => !v); return; }
     if (input === 'l') {
       if (focusPane === 'files') {
         setFocusPane('rankings');
@@ -661,7 +661,7 @@ const RankNamePreview: React.FC<{
 
   // Close on Esc or e
   useInput((input, key) => {
-    if (key.escape || input === 'e') onClose();
+    if (key.escape || input === 'e' || input === 'E') onClose();
   });
 
   return (

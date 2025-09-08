@@ -190,13 +190,17 @@ export function PromptEditor(props: {
 
     // Normalize Backspace across terminals (DEL 0x7F or BS 0x08)
     const ch = typeof input === 'string' ? input : '';
-    const isBackspaceKey =
+    // Many terminals send Backspace as:
+    //  - BS (\u0008), DEL (\u007F), or Ctrl+H
+    //  - Some (esp. Windows/tmux configs) report it as key.delete with no char payload.
+    const isBackspaceLike =
       key.backspace ||
       ch === '\u0008' || // BS
-      ch === '\u007F' || // DEL
+      ch === '\u007F' || // DEL (^?)
       ch === '\b' ||
       ch === '\x7f' ||
-      (key.ctrl && (ch === 'h' || ch === 'H')); // many terms map Backspace to Ctrl+H
+      (key.ctrl && (ch === 'h' || ch === 'H')) ||
+      (key.delete && ch === ''); // fallback: treat "delete" with empty input as Backspace
 
     // Cursor movement
     if (key.leftArrow) { setCursor(row, Math.max(0, col - 1)); return; }
@@ -209,8 +213,10 @@ export function PromptEditor(props: {
 
     // Editing
     if (key.return) { insertText('\n'); return; }
-    if (isBackspaceKey) { backspace(); return; }
-    if (key.delete) { del(); return; }
+    if (isBackspaceLike) { backspace(); return; }
+    // Forward delete (Fn+Delete / Del key) typically arrives as ESC[3~, which Ink reports as delete with a non-empty input.
+    // Only treat as forward-delete if it wasn't one of the Backspace-like cases above.
+    if (key.delete && !isBackspaceLike) { del(); return; }
     if (key.tab) { insertText('  '); return; }
 
     // Emacs-y helpers
