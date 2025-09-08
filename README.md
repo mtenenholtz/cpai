@@ -80,7 +80,7 @@ Create `.cpairc.json` (or put a `cpai` field in `package.json`):
 
 ---
 
-## How to use now
+## Setup and Usage
 
 1. **Initialize and build**
 
