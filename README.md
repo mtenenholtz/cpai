@@ -120,24 +120,6 @@ This will produce something like:
 
 ---
 
-## Design choices & notes
-
-- **Tokenization**: Uses `@dqbd/tiktoken` with an encoding chosen by `--encoding` (or inferred via `--model`). Defaults to `o200k_base` (great for modern LLMs). You can pass `--encoding cl100k_base` for older GPT-3.5/GPT-4 style tokenization.
-- **Safety**: Skips common binary files and large files by default (`--max-bytes-per-file`, default 0.5 MB).
-- **Packing algorithm**: Greedy (`small-first`, `large-first`, or `path`). With `--strict` (default), it re-counts the *rendered* text and trims tail files if needed to ensure the token budget is respected.
-- **Default output**: Per-file tags. Each file is wrapped as `<FILE_n path="..."> ... </FILE_n>`. Use `--no-tags` to disable.
-- **Other formats**:
-  - **markdown**: `--format markdown` adds headings per file with code fences.
-  - **plain**: `--format plain` uses minimal separators.
-  - **json**: `--format json` prints file metadata.
-- **Config**: `.cpairc.json` or `package.json#cpai` provide team-wide defaults. CLI flags override config. For prompts, `selectedPrompts` auto-includes saved prompts by name (project-level config supersedes global).
-
----
-
-If you want enhancements (e.g., per-language heuristics or automatic “most informative files first”), say the word and I’ll extend this.
-
----
-
 ## TUI (interactive)
 
 ### Quickstart (≈1 minute)
@@ -260,6 +242,95 @@ Tree & Rankings
 - Files/dirs show aligned token counts. Use `space` to toggle inclusion on a file or on an entire directory (either from Files or from the Rankings “Folders” column).
 
 ---
+
+## Configuration Reference (`.cpairc.json` / `~/.cpai/config.json`)
+
+Use a project-local `.cpairc.json` and/or a global config at `~/.cpai/config.json`. You can also place a `cpai` object inside `package.json`. Precedence (lowest → highest):
+
+- Global `~/.cpai/config.json`
+- Project `package.json#cpai`
+- Project `.cpairc.json`
+- Command-line flags
+
+Example minimal config:
+
+```json
+{
+  "include": ["**/*"],
+  "exclude": ["**/{node_modules,dist,build,.git}/**"],
+  "useGitignore": true,
+  "useCpaiIgnore": true,
+  "hidden": false,
+  "maxBytesPerFile": 512000,
+  "model": "gpt-4o-mini",
+  "encoding": "o200k_base",
+  "format": "markdown",
+  "mouse": false,
+  "instructions": "Optional default instructions…",
+  "selectedPrompts": ["style-guide", "acceptance-criteria"]
+}
+```
+
+Top-level keys
+- `include`: array of globs. Files considered for scanning/packing. Defaults to `**/*`.
+- `exclude`: array of globs. Excludes common deps/build/binary assets by default.
+- `useGitignore`: boolean. When true, respects `.gitignore` patterns.
+- `useCpaiIgnore`: boolean. When true, `.cpaiignore` influences selection (TUI shows such files but auto-deselects; CLI excludes them).
+- `hidden`: boolean. Include dotfiles.
+- `maxBytesPerFile`: number. Skip files larger than this (bytes). Default 512000.
+- `model`: string. Used for tokenization heuristics (e.g., `gpt-4o-mini`).
+- `encoding`: string. Explicit tiktoken encoding (e.g., `o200k_base`).
+- `format`: `"markdown" | "plain" | "json"`. Rendering mode for `cpai copy` and defaults in TUI.
+- `mouse`: boolean. Default mouse behavior for the TUI.
+- `instructions`: string. Default instructions inserted at the top (and duplicated at the bottom) of rendered output.
+- `instructionsFile`: string. Path to a file whose contents become default `instructions`.
+- `selectedPrompts`: array of names to auto-include from saved prompts directories.
+
+Saved prompts
+- Place `.md`, `.txt`, or `.prompt` files in any of:
+  - Project: `./.cpai/prompts/` or `./prompts/`
+  - Global: `~/.cpai/prompts/`
+- When names collide, project prompts win. Names are derived from filenames sans extension.
+- TUI: `Ctrl+P` opens the picker; `selectedPrompts` are pre-selected.
+- CLI copy: any `selectedPrompts` are added as `<PROMPT name="…">…</PROMPT>` blocks at the top.
+
+`.cpaiignore`
+- Add ignore-style patterns (one per line) to auto-deselect in the TUI and exclude in CLI.
+- Common large/binary formats are excluded by default; adjust here as needed.
+
+Profiles (`profiles`)
+- Define named overrides for common scenarios. Specify in `.cpairc.json` or global config, then use with `cpai copy . --profile <name>`.
+
+Profile fields
+- All top-level keys above are allowed inside a profile. Additional copy-tuning keys:
+  - `tagsWrap`: boolean. Default true. Wrap files as `<FILE_n path="…">…</FILE_n>`.
+  - `xmlWrap`: boolean. Wrap output in XML with `<tree>` and `<file>` elements.
+  - `codeFences`: boolean. For markdown format, include ``` fences (default true).
+  - `blockSeparator`: string. Plain-text separator between files for plain format (default `\n\n`).
+  - `packOrder`: `"small-first" | "large-first" | "path"`. Greedy packing order.
+  - `strict`: boolean. Re-count rendered tokens and trim to budget if needed (default true).
+  - `mouse`: boolean. Per-profile TUI mouse override.
+
+Profile example
+
+```json
+{
+  "profiles": {
+    "review": {
+      "include": ["src/**/*", "README.md"],
+      "exclude": ["**/*.test.ts"],
+      "format": "markdown",
+      "instructions": "Review for correctness and clarity.",
+      "selectedPrompts": ["style-guide"],
+      "packOrder": "small-first",
+      "strict": true,
+      "tagsWrap": true,
+      "xmlWrap": false
+    }
+  }
+}
+```
+
 
 ## Profiles and Prompt Injection
 
