@@ -4,13 +4,14 @@ import chalk from "chalk";
 import clipboard from "clipboardy";
 import path from "node:path";
 import fs from "node:fs/promises";
-import { loadAicpConfig, writeDefaultAicpConfig, DEFAULT_CONFIG } from "./lib/config.js";
+import { loadAicpConfig, writeDefaultAicpConfig, writeDefaultGlobalAicpConfig, DEFAULT_CONFIG } from "./lib/config.js";
 import { scan } from "./lib/scan.js";
 import { ensureEncoder } from "./lib/tokenizer.js";
 import { formatOutput, packFilesToBudget, renderJson, formatXml, formatTags, wrapWithPrompt } from "./lib/format.js";
 import { extnameLower, humanBytes, sortBy, toPosix, padPlain } from "./lib/utils.js";
 import type { CopyOptions, ScanOptions } from "./types.js";
-import { runTui } from "./tui.js";
+import { getTuiAdapter } from "./ui/adapter.js";
+import os from "node:os";
 
 const program = new Command();
 // Friendlier error UX
@@ -78,10 +79,16 @@ program
   .command("init")
   .description("Create a .aicprc.json with sensible defaults")
   .option("-C, --cwd <dir>", "working directory", ".")
+  .option("--global", "write to ~/.aicp/config.json instead of local .aicprc.json", false)
   .action(async (opts) => {
-    const cwd = path.resolve(process.cwd(), opts.cwd);
-    const p = await writeDefaultAicpConfig(cwd);
-    console.log(chalk.green(`Created ${p}`));
+    if (opts.global) {
+      const p = await writeDefaultGlobalAicpConfig();
+      console.log(chalk.green(`Created ${p}`));
+    } else {
+      const cwd = path.resolve(process.cwd(), opts.cwd);
+      const p = await writeDefaultAicpConfig(cwd);
+      console.log(chalk.green(`Created ${p}`));
+    }
   });
 
 program
@@ -201,8 +208,11 @@ program
   .option("--xml", "Wrap output in XML with <tree> and <file> tags", false)
   .option("--no-tags", "Do not wrap each file with <FILE_n> separators (default on)")
   .option("-P, --profile <name>", "use a named profile from .aicprc.json", "")
-  .option("--prompt <text>", "additional instruction text added to top and bottom")
-  .option("--prompt-file <path>", "read the prompt text from a file")
+  .option("-i, --instructions <text>", "additional instruction text added to top and bottom")
+  .option("--instructions-file <path>", "read the instructions text from a file")
+  // Back-compat (deprecated)
+  .option("--prompt <text>", "[deprecated] use --instructions instead")
+  .option("--prompt-file <path>", "[deprecated] use --instructions-file instead")
   .action(async (dirArg, opts) => {
     const cwd = path.resolve(process.cwd(), opts.cwd || dirArg || ".");
     const fileCfg = await loadAicpConfig(cwd);
@@ -211,26 +221,74 @@ program
     const profileName: string | undefined = opts.profile || undefined;
     const profile = profileName && fileCfg.profiles ? fileCfg.profiles[profileName] : undefined;
 
-    async function readPromptText(): Promise<string | undefined> {
-      const cliText: string | undefined = opts.prompt || undefined;
-      const cliFile: string | undefined = opts.promptFile || undefined;
-      const profText: string | undefined = (profile?.prompt as string | undefined) || undefined;
-      const profFile: string | undefined = (profile?.promptFile as string | undefined) || undefined;
-      const cfgText: string | undefined = (fileCfg.prompt as string | undefined) || undefined;
-      const cfgFile: string | undefined = (fileCfg.promptFile as string | undefined) || undefined;
+    async function readInstructionsText(): Promise<string | undefined> {
+      // Prefer new flags but accept deprecated ones for back-compat
+      const cliText: string | undefined = opts.instructions || opts.prompt || undefined;
+      const cliFile: string | undefined = opts.instructionsFile || opts.promptFile || undefined;
+      const profText: string | undefined = (((profile as any)?.instructions) as string | undefined) || (profile?.prompt as string | undefined) || undefined;
+      const profFile: string | undefined = (((profile as any)?.instructionsFile) as string | undefined) || (profile?.promptFile as string | undefined) || undefined;
+      const cfgText: string | undefined = (((fileCfg as any)?.instructions) as string | undefined) || (fileCfg.prompt as string | undefined) || undefined;
+      const cfgFile: string | undefined = (((fileCfg as any)?.instructionsFile) as string | undefined) || (fileCfg.promptFile as string | undefined) || undefined;
 
       const pickFile = cliFile || profFile || cfgFile;
+      let instructions: string | undefined = undefined;
       if (pickFile) {
         try {
           const p = path.isAbsolute(pickFile) ? pickFile : path.join(cwd, pickFile);
-          return await fs.readFile(p, "utf8");
+          instructions = await fs.readFile(p, "utf8");
         } catch (e) {}
       }
-      const pickText = cliText || profText || cfgText;
-      return pickText ? String(pickText) : undefined;
+      if (!instructions) {
+        const pickText = cliText || profText || cfgText;
+        instructions = pickText ? String(pickText) : undefined;
+      }
+
+      // Compose with saved prompts selected via config/profile
+      const selectedNames: string[] | undefined = (profile?.selectedPrompts as string[] | undefined) ?? (fileCfg.selectedPrompts as string[] | undefined);
+      if (!selectedNames || selectedNames.length === 0) return instructions;
+
+      // Load saved prompts from project and global locations, preferring project names
+      const saved = await (async () => {
+        const home = os.homedir?.() || process.env.HOME || process.env.USERPROFILE || '';
+        const globalDir = home ? path.join(home, '.aicp', 'prompts') : null;
+        const candidates = [
+          path.join(cwd, '.aicp/prompts'),
+          path.join(cwd, 'prompts'),
+          globalDir
+        ].filter(Boolean) as string[];
+        const out: { name: string; text: string }[] = [];
+        for (const c of candidates) {
+          try {
+            const items = await fs.readdir(c, { withFileTypes: true });
+            for (const d of items) {
+              if (!d.isFile()) continue;
+              const ext = path.extname(d.name).toLowerCase();
+              if (!['.md', '.txt', '.prompt'].includes(ext)) continue;
+              const nm = path.basename(d.name, ext);
+              const p = path.join(c, d.name);
+              const text = await fs.readFile(p, 'utf8');
+              out.push({ name: nm, text });
+            }
+          } catch {}
+        }
+        const map = new Map<string, { name: string; text: string }>();
+        for (const p of out) if (!map.has(p.name)) map.set(p.name, p);
+        return map;
+      })();
+
+      const parts: string[] = [];
+      if (instructions && instructions.trim()) parts.push(`<INSTRUCTIONS>\n${instructions.trim()}\n</INSTRUCTIONS>`);
+      for (const name of selectedNames) {
+        const sp = saved.get(name);
+        if (!sp) continue;
+        const esc = (s: string) => s.replaceAll('&', '&amp;').replaceAll('"', '&quot;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
+        parts.push(`<PROMPT name="${esc(sp.name)}">\n${sp.text.trim()}\n</PROMPT>`);
+      }
+      const final = parts.join('\n\n');
+      return final || instructions;
     }
 
-    const promptText = await readPromptText();
+    const promptText = await readInstructionsText();
 
     // Normalize include/exclude similarly to scan via mergeConfigWithCli
     const baseCfg: CopyOptions = {
@@ -337,32 +395,54 @@ program
   .command("tui [dir]")
   .description("Interactive TUI to browse, filter, and bundle files")
   .option("-C, --cwd <dir>", "working directory (defaults to dir)", "")
-  .option("--prompt <text>", "prefill an ad-hoc prompt", "")
-  .option("--prompt-file <path>", "prefill a prompt from a file")
+  .option("-i, --instructions <text>", "prefill ad-hoc instructions", "")
+  .option("--instructions-file <path>", "prefill instructions from a file")
+  // Back-compat (deprecated)
+  .option("--prompt <text>", "[deprecated] use --instructions instead", "")
+  .option("--prompt-file <path>", "[deprecated] use --instructions-file instead")
   .option(
     "--prompts-dir <dir>",
     "directory of saved prompts to pick (default: ./prompts or ./.aicp/prompts)"
   )
   .option("--pick-prompts", "open saved prompts picker on launch", false)
+  .option("--mouse", "enable mouse hover/selection in the TUI (overrides config)")
   .action(async (dirArg, opts) => {
     const cwd = path.resolve(process.cwd(), opts.cwd || dirArg || ".");
     let promptText: string | undefined = undefined;
-    if (opts.promptFile) {
+    const fileOpt: string | undefined = opts.instructionsFile || opts.promptFile || undefined;
+    const textOpt: string | undefined = opts.instructions || opts.prompt || undefined;
+    if (fileOpt) {
       try {
-        const p = path.isAbsolute(opts.promptFile) ? opts.promptFile : path.join(cwd, opts.promptFile);
+        const p = path.isAbsolute(fileOpt) ? fileOpt : path.join(cwd, fileOpt);
         promptText = await fs.readFile(p, "utf8");
       } catch (e: any) {
-        console.error(chalk.yellow(`Failed to read --prompt-file: ${e?.message ?? e}`));
+        console.error(chalk.yellow(`Failed to read instructions file: ${e?.message ?? e}`));
       }
     }
-    if (opts.prompt) {
-      promptText = String(opts.prompt);
+    if (textOpt) {
+      promptText = String(textOpt);
     }
-    await runTui(cwd, {
-      promptText,
-      promptsDir: opts.promptsDir ? String(opts.promptsDir) : undefined,
-      openPromptPicker: !!opts.pickPrompts
-    });
+    try {
+      const adapter = await getTuiAdapter();
+      let mouseFlag: boolean | undefined = undefined;
+      if (typeof opts.mouse === 'boolean') mouseFlag = !!opts.mouse;
+      else {
+        try {
+          const cfg = await loadAicpConfig(cwd);
+          mouseFlag = cfg.mouse ?? false;
+        } catch { mouseFlag = false; }
+      }
+      await adapter.run({
+        cwd,
+        promptText,
+        promptsDir: opts.promptsDir ? String(opts.promptsDir) : undefined,
+        openPromptPicker: !!opts.pickPrompts,
+        mouse: mouseFlag
+      });
+    } catch (e: any) {
+      console.error(chalk.red(e?.message ?? e));
+      process.exitCode = 1;
+    }
   });
 
 program.parseAsync(process.argv);

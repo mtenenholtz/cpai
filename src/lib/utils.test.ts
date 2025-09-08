@@ -37,4 +37,19 @@ describe('utils', () => {
     // Truncates and adds ellipsis when too long
     expect(padPlain('hello', 4)).toBe('hel…');
   });
+
+  it('padPlain: exact fit has no ellipsis', () => {
+    expect(padPlain('abcd', 4)).toBe('abcd');
+  });
+
+  it('padPlain: strips ANSI before truncation and adds single ellipsis', () => {
+    const colored = '\u001b[32mhello world\u001b[0m';
+    // visible plain is 'hello world' -> truncated to width 6 gives 'hello…'
+    expect(padPlain(colored, 6)).toBe('hello…');
+  });
+
+  it('padPlain: wide-ish glyphs still produce single ellipsis', () => {
+    const s = '••••••••••≈';
+    expect(padPlain(s, 6)).toBe('•••••…');
+  });
 });

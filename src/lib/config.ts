@@ -1,5 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
+import os from "node:os";
 
 export type AicpConfig = {
   include?: string[];
@@ -11,9 +12,15 @@ export type AicpConfig = {
   model?: string;
   encoding?: string;
   format?: "markdown" | "plain" | "json";
+  // UI toggles
+  mouse?: boolean;
   // Optional default prompt included at top and bottom
   prompt?: string;
   promptFile?: string;
+  // Saved prompts (by name) to auto-select/include
+  // - In TUI: pre-selects in the Saved Prompts picker
+  // - In CLI copy: includes these saved prompts in the composed prompt
+  selectedPrompts?: string[];
   // Named profiles that can override include/exclude and prompt per run
   profiles?: Record<string, AicpProfile>;
 };
@@ -30,15 +37,18 @@ export type AicpProfile = {
   format?: "markdown" | "plain" | "json";
   prompt?: string;
   promptFile?: string;
+  // Saved prompts (by name) to auto-select/include for this profile
+  selectedPrompts?: string[];
   tagsWrap?: boolean;
   xmlWrap?: boolean;
   codeFences?: boolean;
   blockSeparator?: string;
   packOrder?: "small-first" | "large-first" | "path";
   strict?: boolean;
+  mouse?: boolean;
 };
 
-export const DEFAULT_CONFIG: Required<Omit<AicpConfig, "profiles" | "prompt" | "promptFile">> = {
+export const DEFAULT_CONFIG: Required<Omit<AicpConfig, "profiles" | "prompt" | "promptFile" | "selectedPrompts">> = {
   include: ["**/*"],
   exclude: [
     "**/{node_modules,dist,build,.git,.next,.cache,coverage}/**",
@@ -54,20 +64,34 @@ export const DEFAULT_CONFIG: Required<Omit<AicpConfig, "profiles" | "prompt" | "
   maxBytesPerFile: 512000, // 0.5 MB per file by default
   model: "gpt-4o-mini",
   encoding: "o200k_base",
-  format: "markdown"
+  format: "markdown",
+  mouse: false
 };
 
 export async function loadAicpConfig(cwd: string): Promise<AicpConfig> {
   const configPath = path.join(cwd, ".aicprc.json");
   const pkgPath = path.join(cwd, "package.json");
+  const home = os.homedir?.() || process.env.HOME || process.env.USERPROFILE || "";
+  const aicpHome = home ? path.join(home, ".aicp") : "";
 
   let config: AicpConfig = {};
 
+  // Global (~/.aicp/config.json or ~/.aicp/.aicprc.json)
+  const globalCandidates = aicpHome ? [path.join(aicpHome, "config.json"), path.join(aicpHome, ".aicprc.json")] : [];
+  for (const p of globalCandidates) {
+    try {
+      const raw = await fs.readFile(p, "utf8");
+      config = { ...config, ...JSON.parse(raw) };
+    } catch {}
+  }
+
+  // Project .aicprc.json
   try {
     const raw = await fs.readFile(configPath, "utf8");
     config = { ...config, ...JSON.parse(raw) };
   } catch {}
 
+  // package.json#aicp
   try {
     const raw = await fs.readFile(pkgPath, "utf8");
     const pkg = JSON.parse(raw);
@@ -84,4 +108,15 @@ export async function writeDefaultAicpConfig(cwd: string) {
   const content = JSON.stringify(DEFAULT_CONFIG, null, 2) + "\n";
   await fs.writeFile(configPath, content, "utf8");
   return configPath;
+}
+
+export async function writeDefaultGlobalAicpConfig() {
+  const home = os.homedir?.() || process.env.HOME || process.env.USERPROFILE;
+  if (!home) throw new Error("Cannot resolve HOME directory for ~/.aicp");
+  const dir = path.join(home, ".aicp");
+  await fs.mkdir(dir, { recursive: true });
+  const p = path.join(dir, "config.json");
+  const content = JSON.stringify(DEFAULT_CONFIG, null, 2) + "\n";
+  await fs.writeFile(p, content, "utf8");
+  return p;
 }

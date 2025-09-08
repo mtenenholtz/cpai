@@ -92,8 +92,21 @@ export async function packFilesToBudget(
   const header = opts.header ? opts.header + "\n\n" : "";
   const approxHeaderTokens = header ? encoder.encode(header).length : 0;
   const prompt = opts.promptText ? String(opts.promptText) : "";
-  const promptBlock = prompt ? `<PROMPT>\n${prompt}\n</PROMPT>` : "";
-  const approxPromptTokens = promptBlock ? encoder.encode(promptBlock).length * 2 + 2 : 0; // top+bottom
+  // Build the top preface block: if caller already provided tagged content
+  // (e.g., <INSTRUCTIONS>...</INSTRUCTIONS> and optional <PROMPT name="..."> blocks),
+  // use it as-is; otherwise, wrap raw text in <INSTRUCTIONS> tags.
+  const preface = prompt
+    ? (prompt.includes('<INSTRUCTIONS>') || prompt.includes('<PROMPT')
+        ? prompt
+        : `<INSTRUCTIONS>\n${prompt}\n</INSTRUCTIONS>`)
+    : "";
+  // For the bottom, we duplicate only the INSTRUCTIONS block when available; if not found,
+  // duplicate the entire preface (raw instructions wrapped above).
+  const instructionsOnlyMatch = /<INSTRUCTIONS>[\s\S]*?<\/INSTRUCTIONS>/i.exec(preface);
+  const bottomBlock = instructionsOnlyMatch ? instructionsOnlyMatch[0] : preface;
+  const approxPromptTokens = preface
+    ? encoder.encode(preface).length + encoder.encode(bottomBlock).length + 2 // two blank lines between sections
+    : 0;
 
   const selected: FileEntry[] = [];
   let running = approxHeaderTokens + approxPromptTokens;
@@ -212,8 +225,8 @@ function encodeCdata(text: string): string {
 
 type DirNode = { name: string; dirs: Map<string, DirNode>; files: string[] };
 
-function buildTree(paths: string[]): DirNode {
-  const root: DirNode = { name: ".", dirs: new Map(), files: [] };
+function buildTree(paths: string[], rootName: string = '.'): DirNode {
+  const root: DirNode = { name: rootName, dirs: new Map(), files: [] };
   for (const p of paths) {
     const parts = p.split("/");
     let node = root;
@@ -267,8 +280,9 @@ export async function formatXml(entries: FileEntry[], opts: CopyOptions): Promis
   }
 
   // Tree view for the selected entries
-  const treeRoot = buildTree(entries.map((e) => e.relPath));
-  const treeAscii = ["./", ...renderTreeAscii(treeRoot)].join("\n");
+  const rootLabel = path.basename(opts.cwd || '.') + '/';
+  const treeRoot = buildTree(entries.map((e) => e.relPath), path.basename(opts.cwd || '.'));
+  const treeAscii = [rootLabel, ...renderTreeAscii(treeRoot)].join("\n");
   lines.push("  <tree>");
   lines.push("    <![CDATA[");
   for (const l of treeAscii.split("\n")) lines.push("    " + l);
@@ -296,8 +310,9 @@ export async function formatXml(entries: FileEntry[], opts: CopyOptions): Promis
 export async function formatTags(entries: FileEntry[], opts: CopyOptions): Promise<string> {
   const lines: string[] = [];
   // Tree view at the top
-  const treeRoot = buildTree(entries.map((e) => e.relPath));
-  const treeAscii = ["./", ...renderTreeAscii(treeRoot)].join("\n");
+  const rootLabel = path.basename(opts.cwd || '.') + '/';
+  const treeRoot = buildTree(entries.map((e) => e.relPath), path.basename(opts.cwd || '.'));
+  const treeAscii = [rootLabel, ...renderTreeAscii(treeRoot)].join("\n");
   lines.push("<TREE>");
   lines.push(treeAscii);
   lines.push("</TREE>", "");
@@ -315,7 +330,14 @@ export async function formatTags(entries: FileEntry[], opts: CopyOptions): Promi
 
 export function wrapWithPrompt(body: string, prompt?: string): string {
   if (!prompt) return body;
-  const block = `<PROMPT>\n${prompt}\n</PROMPT>`;
-  const parts = [block, "", body, "", block];
+  // If caller already returns tagged content (<INSTRUCTIONS> / <PROMPT name>), use it.
+  // Otherwise, wrap raw text in <INSTRUCTIONS> tags.
+  const preface = (prompt.includes('<INSTRUCTIONS>') || prompt.includes('<PROMPT'))
+    ? prompt
+    : `<INSTRUCTIONS>\n${prompt}\n</INSTRUCTIONS>`;
+  // Duplicate only the instructions block at the bottom for emphasis; saved prompts remain at the top.
+  const instructionsOnlyMatch = /<INSTRUCTIONS>[\s\S]*?<\/INSTRUCTIONS>/i.exec(preface);
+  const bottom = instructionsOnlyMatch ? instructionsOnlyMatch[0] : preface;
+  const parts = [preface, "", body, "", bottom];
   return parts.join("\n");
 }
