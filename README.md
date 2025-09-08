@@ -1,6 +1,6 @@
-# aicp
+# cpai
 
-**aicp** helps you **scan** and **bulk copy** code (or any text files) into a single prompt for an LLM, while keeping an eye on **token usage**. It supports globs, `.gitignore`/`.aicpignore`, packing under a token budget, and rendering as Markdown / plain / JSON. Powered by [`@dqbd/tiktoken`](https://www.npmjs.com/package/@dqbd/tiktoken).
+**cpai** helps you **scan** and **bulk copy** code (or any text files) into a single prompt for an LLM, while keeping an eye on **token usage**. It supports globs, `.gitignore`/`.cpaiignore`, packing under a token budget, and rendering as Markdown / plain / JSON. Powered by [`@dqbd/tiktoken`](https://www.npmjs.com/package/@dqbd/tiktoken).
 
 ## Install (local dev)
 
@@ -8,7 +8,7 @@
 pnpm install
 pnpm run build
 pnpm link --global
-# now the `aicp` command is available globally
+# now the `cpai` command is available globally
 ````
 
 Or run directly:
@@ -22,36 +22,36 @@ pnpm dlx tsx src/cli.ts --help
 Scan a project:
 
 ```bash
-aicp scan . --by-dir
+cpai scan . --by-dir
 ```
 
 Copy as tags (default) to stdout:
 
 ```bash
-aicp copy . --include "src/**/*" --exclude "src/**/*.test.ts"
+cpai copy . --include "src/**/*" --exclude "src/**/*.test.ts"
 ```
 
 Fit under a 120k token budget, small files first, copy to clipboard:
 
 ```bash
-aicp copy . --max-tokens 120000 --pack-order small-first --clip
+cpai copy . --max-tokens 120000 --pack-order small-first --clip
 ```
 
 Write to a file:
 
 ```bash
-aicp copy . -o aicp-bundle.md
+cpai copy . -o cpai-bundle.md
 ```
 
 Initialize a local config:
 
 ```bash
-aicp init
+cpai init
 ```
 
 ## Configuration
 
-Create `.aicprc.json` (or put an `aicp` field in `package.json`):
+Create `.cpairc.json` (or put a `cpai` field in `package.json`):
 
 ```json
 {
@@ -68,12 +68,12 @@ Create `.aicprc.json` (or put an `aicp` field in `package.json`):
 }
 ```
 
-> **Note:** Token counts are model/encoding-specific approximations. For the most accurate budget fit, use `--strict` (default) so `aicp` re-counts the final rendered text.
+> **Note:** Token counts are model/encoding-specific approximations. For the most accurate budget fit, use `--strict` (default) so `cpai` re-counts the final rendered text.
 
 ## Tips
 
 * Use `--include`/`--exclude` globs to trim noise (tests, build artifacts, fixtures).
-* Respect `.gitignore` by default, and add additional rules in `.aicpignore`.
+* Respect `.gitignore` by default, and add additional rules in `.cpaiignore`.
 * For legacy models, consider `--encoding cl100k_base`.
 
 ````
@@ -93,13 +93,13 @@ pnpm link --global
 2. **Explore your repo**
 
 ```bash
-aicp scan . --by-dir
+cpai scan . --by-dir
 ```
 
 3. **Create a paste-ready Markdown bundle**
 
 ```bash
-aicp copy . --include "src/**/*,README.md" --exclude "src/**/*.test.ts" --max-tokens 120000 --clip
+cpai copy . --include "src/**/*,README.md" --exclude "src/**/*.test.ts" --max-tokens 120000 --clip
 ```
 
 This will produce something like:
@@ -178,17 +178,17 @@ New flags & features:
 Start with instructions prefilled
 
 ```bash
-aicp tui . -i "Refactor for clarity"
+cpai tui . -i "Refactor for clarity"
 # or
-aicp tui . --instructions-file .prompt.txt
+cpai tui . --instructions-file .prompt.txt
 ```
 
 Pick saved prompts (multi-select)
 
-Place `.md`, `.txt`, or `.prompt` files in `./prompts/` or `./.aicp/prompts/`, then:
+Place `.md`, `.txt`, or `.prompt` files in `./prompts/` or `./.cpai/prompts/`, then:
 
 ```bash
-aicp tui . --prompts-dir ./prompts --pick-prompts
+cpai tui . --prompts-dir ./prompts --pick-prompts
 ```
 
 In the UI:
@@ -214,7 +214,7 @@ CLI cheatsheet
 
 ```text
 ? Help  / Filter  Space Toggle  A All  N None  V Invert
-i include  x exclude  g .gitignore  a .aicpignore  . Hidden
+i include  x exclude  g .gitignore  a .cpaiignore  . Hidden
 b Budget  s Sort  m Format  e XML  t Tags
 p Prompt  P Prompts  h/H mute rankings  F2 metric
 L Layout  o Write  c Copy  r Rescan  q Quit
@@ -224,7 +224,7 @@ L Layout  o Write  c Copy  r Rescan  q Quit
 
 ## Profiles and Prompt Injection
 
-- Define profiles in `.aicprc.json`:
+- Define profiles in `.cpairc.json`:
 
 ```json
 {
@@ -239,7 +239,7 @@ L Layout  o Write  c Copy  r Rescan  q Quit
 }
 ```
 
-- Use a profile: `aicp copy . --profile docs-only`
+- Use a profile: `cpai copy . --profile docs-only`
 - Add/override instructions at runtime:
 - Inline: `-i "Refactor for clarity; note assumptions."`
 - From file: `--instructions-file .prompt.txt`

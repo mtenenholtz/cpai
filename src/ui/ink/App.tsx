@@ -155,7 +155,7 @@ export function App(props: {cwd: string; promptText?: string; promptsDir?: strin
   // Auto-reload: poll for added/removed files and rescan when list changes
   useEffect(() => {
     let cancelled = false;
-    const pollMs = Number(process.env.AICP_TUI_POLL_MS || '') || 2000;
+    const pollMs = Number(process.env.CPAI_TUI_POLL_MS || process.env.AICP_TUI_POLL_MS || '') || 2000;
 
     async function check() {
       if (cancelled) return;

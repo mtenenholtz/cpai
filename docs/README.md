@@ -1,6 +1,6 @@
-# AICP Documentation
+# CPAI Documentation
 
-Welcome to AICP — a CLI and TUI for scanning repositories, inspecting token usage, and composing copyable bundles for LLM workflows.
+Welcome to CPAI — a CLI and TUI for scanning repositories, inspecting token usage, and composing copyable bundles for LLM workflows.
 
 This documentation covers:
 
@@ -8,7 +8,7 @@ This documentation covers:
 - TUI (Ink) usage and keybindings
 - Configuration (project + global) and precedence
 - Prompts (saved + ad‑hoc) and the Instructions Editor
-- Ignore rules (.gitignore + .aicpignore, including global ignores)
+- Ignore rules (.gitignore + .cpaiignore, including global ignores)
 - Troubleshooting tips
 
 Topic entry points:
@@ -17,7 +17,7 @@ Topic entry points:
 - docs/tui.md — TUI walkthrough + keymap
 - docs/configuration.md — Config options and precedence
 - docs/prompts.md — Saved prompts, the editor, and composition
-- docs/ignore.md — How ignores work (.gitignore, .aicpignore)
+- docs/ignore.md — How ignores work (.gitignore, .cpaiignore)
 - docs/troubleshooting.md — Common issues and fixes
 
 ## Quick Start
@@ -32,7 +32,7 @@ pnpm install
 
 ```bash
 # after: pnpm run build && pnpm link --global
-aicp scan . --by-dir
+cpai scan . --by-dir
 # or without linking:
 pnpm dlx tsx src/cli.ts scan . --by-dir
 ```
@@ -40,7 +40,7 @@ pnpm dlx tsx src/cli.ts scan . --by-dir
 3. Copy a packed bundle under a token budget:
 
 ```bash
-aicp copy . --max-tokens 80000 --clip --by-dir
+cpai copy . --max-tokens 80000 --clip --by-dir
 # or without linking:
 pnpm dlx tsx src/cli.ts copy . --max-tokens 80000 --clip --by-dir
 ```
@@ -48,7 +48,7 @@ pnpm dlx tsx src/cli.ts copy . --max-tokens 80000 --clip --by-dir
 4. Launch the Ink TUI:
 
 ```bash
-aicp tui .
+cpai tui .
 # or:
 pnpm dlx tsx src/cli.ts tui .
 ```
@@ -61,12 +61,12 @@ pnpm dlx tsx src/cli.ts tui .
 
 ```bash
 # project-level
-aicp init
+cpai init
 # or without linking:
 pnpm dlx tsx src/cli.ts init
 
-# global defaults (~/.aicp/config.json)
-aicp init --global
+# global defaults (~/.cpai/config.json)
+cpai init --global
 # or without linking:
 pnpm dlx tsx src/cli.ts init --global
 ```

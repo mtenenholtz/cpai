@@ -5,7 +5,7 @@ The TUI is a fast way to browse files, inspect token usage, pick prompts, and co
 Launch:
 
 ```bash
- aicp tui .
+ cpai tui .
 ```
 
 Mouse is off by default. Enable it with `--mouse` or in config (`mouse: true`).

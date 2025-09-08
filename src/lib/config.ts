@@ -14,7 +14,7 @@ export type AicpConfig = {
   format?: "markdown" | "plain" | "json";
   // UI toggles
   mouse?: boolean;
-  // Optional default prompt included at top and bottom
+  // Optional default prompt ("instructions") included at top and bottom
   prompt?: string;
   promptFile?: string;
   // Saved prompts (by name) to auto-select/include
@@ -52,6 +52,7 @@ export const DEFAULT_CONFIG: Required<Omit<AicpConfig, "profiles" | "prompt" | "
   include: ["**/*"],
   exclude: [
     "**/{node_modules,dist,build,.git,.next,.cache,coverage}/**",
+    "**/.cpaiignore",
     "**/.aicpignore",
     "**/*.{png,jpg,jpeg,gif,webp,svg,ico,bmp,pdf,zip,tgz,gz,rar,7z,mp3,mp4,ogg,webm,avi,mov,exe,dll,dylib,so,wasm,woff,woff2,ttf,eot}",
     "**/*.min.{js,css}",
@@ -69,15 +70,22 @@ export const DEFAULT_CONFIG: Required<Omit<AicpConfig, "profiles" | "prompt" | "
 };
 
 export async function loadAicpConfig(cwd: string): Promise<AicpConfig> {
-  const configPath = path.join(cwd, ".aicprc.json");
+  const configPathNew = path.join(cwd, ".cpairc.json");
+  const configPathOld = path.join(cwd, ".aicprc.json");
   const pkgPath = path.join(cwd, "package.json");
   const home = os.homedir?.() || process.env.HOME || process.env.USERPROFILE || "";
+  const cpaiHome = home ? path.join(home, ".cpai") : "";
   const aicpHome = home ? path.join(home, ".aicp") : "";
 
   let config: AicpConfig = {};
 
-  // Global (~/.aicp/config.json or ~/.aicp/.aicprc.json)
-  const globalCandidates = aicpHome ? [path.join(aicpHome, "config.json"), path.join(aicpHome, ".aicprc.json")] : [];
+  // Global (~/.cpai/config.json or ~/.cpai/.cpairc.json). Fallback to legacy ~/.aicp/* files
+  const globalCandidates = [
+    cpaiHome && path.join(cpaiHome, "config.json"),
+    cpaiHome && path.join(cpaiHome, ".cpairc.json"),
+    aicpHome && path.join(aicpHome, "config.json"),
+    aicpHome && path.join(aicpHome, ".aicprc.json"),
+  ].filter(Boolean) as string[];
   for (const p of globalCandidates) {
     try {
       const raw = await fs.readFile(p, "utf8");
@@ -85,26 +93,31 @@ export async function loadAicpConfig(cwd: string): Promise<AicpConfig> {
     } catch {}
   }
 
-  // Project .aicprc.json
+  // Project .cpairc.json (preferred) or legacy .aicprc.json
   try {
-    const raw = await fs.readFile(configPath, "utf8");
+    const raw = await fs.readFile(configPathNew, "utf8");
     config = { ...config, ...JSON.parse(raw) };
   } catch {}
+  if (!Object.keys(config).length) {
+    try {
+      const raw = await fs.readFile(configPathOld, "utf8");
+      config = { ...config, ...JSON.parse(raw) };
+    } catch {}
+  }
 
-  // package.json#aicp
+  // package.json#cpai (preferred) or legacy #aicp
   try {
     const raw = await fs.readFile(pkgPath, "utf8");
     const pkg = JSON.parse(raw);
-    if (pkg.aicp && typeof pkg.aicp === "object") {
-      config = { ...config, ...pkg.aicp };
-    }
+    if (pkg.cpai && typeof pkg.cpai === "object") config = { ...config, ...pkg.cpai };
+    else if (pkg.aicp && typeof pkg.aicp === "object") config = { ...config, ...pkg.aicp };
   } catch {}
 
   return config;
 }
 
 export async function writeDefaultAicpConfig(cwd: string) {
-  const configPath = path.join(cwd, ".aicprc.json");
+  const configPath = path.join(cwd, ".cpairc.json");
   const content = JSON.stringify(DEFAULT_CONFIG, null, 2) + "\n";
   await fs.writeFile(configPath, content, "utf8");
   return configPath;
@@ -112,8 +125,8 @@ export async function writeDefaultAicpConfig(cwd: string) {
 
 export async function writeDefaultGlobalAicpConfig() {
   const home = os.homedir?.() || process.env.HOME || process.env.USERPROFILE;
-  if (!home) throw new Error("Cannot resolve HOME directory for ~/.aicp");
-  const dir = path.join(home, ".aicp");
+  if (!home) throw new Error("Cannot resolve HOME directory for ~/.cpai");
+  const dir = path.join(home, ".cpai");
   await fs.mkdir(dir, { recursive: true });
   const p = path.join(dir, "config.json");
   const content = JSON.stringify(DEFAULT_CONFIG, null, 2) + "\n";

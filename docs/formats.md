@@ -1,6 +1,6 @@
 # Output Formats
 
-AICP can render Markdown, Plain, JSON, and an XML bundle.
+CPAI can render Markdown, Plain, JSON, and an XML bundle.
 
 ## Markdown (default)
 - Per‑file `### path` headings.
@@ -42,7 +42,7 @@ aicp copy . -f json > files.json
 Emits a tree and files section. Contents are wrapped in CDATA and file metadata is captured as attributes.
 
 ```xml
-<aicp version="0.1.0">
+<cpai version="0.1.0">
   <tree><![CDATA[
 repo/
 ├─ src/
@@ -56,7 +56,7 @@ repo/
       ]]>
     </file>
   </files>
-</aicp>
+</cpai>
 ```
 
 ### Headers and prompts

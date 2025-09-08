@@ -57,18 +57,26 @@ export async function scan(options: ScanOptions): Promise<ScanResult> {
     // We'll read .aicpignore ourselves and append to exclude if present:
   });
 
-  // If .aicpignore exists, merge its lines into exclude (project + global)
+  // If .cpaiignore (preferred) or .aicpignore exists, merge its lines into exclude (project + global)
   if (useAicpIgnore) {
     const extra: string[] = [];
     try {
-      const raw = await fs.readFile(path.join(cwd, ".aicpignore"), "utf8");
-      extra.push(...raw.split(/\r?\n/).map((l) => l.trim()).filter((l) => l && !l.startsWith("#")));
+      let raw: string | null = null;
+      try { raw = await fs.readFile(path.join(cwd, ".cpaiignore"), "utf8"); } catch {}
+      if (!raw) { try { raw = await fs.readFile(path.join(cwd, ".aicpignore"), "utf8"); } catch {} }
+      if (raw) {
+        extra.push(...raw.split(/\r?\n/).map((l) => l.trim()).filter((l) => l && !l.startsWith("#")));
+      }
     } catch {}
     try {
       const home = os.homedir?.() || process.env.HOME || process.env.USERPROFILE || "";
       if (home) {
-        const rawG = await fs.readFile(path.join(home, ".aicp", ".aicpignore"), "utf8");
-        extra.push(...rawG.split(/\r?\n/).map((l) => l.trim()).filter((l) => l && !l.startsWith("#")));
+        let rawG: string | null = null;
+        try { rawG = await fs.readFile(path.join(home, ".cpai", ".cpaiignore"), "utf8"); } catch {}
+        if (!rawG) { try { rawG = await fs.readFile(path.join(home, ".aicp", ".aicpignore"), "utf8"); } catch {} }
+        if (rawG) {
+          extra.push(...rawG.split(/\r?\n/).map((l) => l.trim()).filter((l) => l && !l.startsWith("#")));
+        }
       }
     } catch {}
     if (extra.length) {

@@ -274,7 +274,7 @@ function renderTreeAscii(node: DirNode, prefix = ""): string[] {
 
 export async function formatXml(entries: FileEntry[], opts: CopyOptions): Promise<string> {
   const lines: string[] = [];
-  lines.push(`<aicp version="0.1.0">`);
+  lines.push(`<cpai version="0.1.0">`);
   if (opts.header) {
     lines.push(`  <header><![CDATA[${encodeCdata(opts.header)}]]></header>`);
   }
@@ -303,7 +303,7 @@ export async function formatXml(entries: FileEntry[], opts: CopyOptions): Promis
     lines.push("    </file>");
   }
   lines.push("  </files>");
-  lines.push("</aicp>");
+  lines.push("</cpai>");
   return lines.join("\n");
 }
 

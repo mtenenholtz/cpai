@@ -71,15 +71,15 @@ function printScanTable(rows: { path: string; bytes: number; lines: number; toke
 }
 
 program
-  .name("aicp")
+  .name("cpai")
   .description("Bulk copy code/files to paste into an LLM, with token inspection & include/exclude.")
   .version("0.1.0");
 
 program
   .command("init")
-  .description("Create a .aicprc.json with sensible defaults")
+  .description("Create a .cpairc.json with sensible defaults")
   .option("-C, --cwd <dir>", "working directory", ".")
-  .option("--global", "write to ~/.aicp/config.json instead of local .aicprc.json", false)
+  .option("--global", "write to ~/.cpai/config.json instead of local .cpairc.json", false)
   .action(async (opts) => {
     if (opts.global) {
       const p = await writeDefaultGlobalAicpConfig();

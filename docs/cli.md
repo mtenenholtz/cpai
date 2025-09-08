@@ -1,31 +1,31 @@
 # CLI Reference
 
-AICP ships a single executable `aicp` with these primary commands:
+CPAI ships a single executable `cpai` with these primary commands:
 
-- `aicp init` — create a config (project or global)
-- `aicp scan` — scan files and report token usage
-- `aicp copy` — render and copy/write a bundle (optionally under a token budget)
-- `aicp tui` — run the Ink TUI
+- `cpai init` — create a config (project or global)
+- `cpai scan` — scan files and report token usage
+- `cpai copy` — render and copy/write a bundle (optionally under a token budget)
+- `cpai tui` — run the Ink TUI
 
 All commands accept `-C, --cwd <dir>` to change the working directory.
 
 ---
 
-## aicp init
+## cpai init
 
 Create a config with sensible defaults.
 
 ```bash
-# project-level ./.aicprc.json
- aicp init -C .
+# project-level ./.cpairc.json
+ cpai init -C .
 
-# global defaults (~/.aicp/config.json)
- aicp init --global
+# global defaults (~/.cpai/config.json)
+ cpai init --global
 ```
 
 ---
 
-## aicp scan [dir]
+## cpai scan [dir]
 
 Scan a directory and print token usage for each file. Defaults to a table; `--json` prints JSON.
 
@@ -33,7 +33,7 @@ Key options:
 
 - `--include <globs...>` / `--exclude <globs...>`
 - `--no-gitignore` (respect .gitignore by default)
-- `--aicpignore` (on by default; merges project .aicpignore and global ~/.aicp/.aicpignore)
+- `--aicpignore` (on by default; merges project .cpaiignore (or legacy .aicpignore) and global ~/.cpai/.cpaiignore)
 - `--hidden` include dotfiles
 - `--max-bytes-per-file <n>` (skip large files)
 - `--model <name>`; `--encoding <tiktoken>`
@@ -43,12 +43,12 @@ Key options:
 Example:
 
 ```bash
- aicp scan . --include "src/**" --exclude "**/*.test.ts" --by-dir
+ cpai scan . --include "src/**" --exclude "**/*.test.ts" --by-dir
 ```
 
 ---
 
-## aicp copy [dir]
+## cpai copy [dir]
 
 Render files and write to stdout, a file, and/or the clipboard; optionally pack under `--max-tokens`.
 
@@ -80,26 +80,26 @@ Examples:
 
 ```bash
  # Copy everything to clipboard
- aicp copy . --clip
+ cpai copy . --clip
 
  # Pack to 120k tokens, small-first ordering
- aicp copy . --max-tokens 120000 --pack-order small-first --clip
+ cpai copy . --max-tokens 120000 --pack-order small-first --clip
 
  # JSON list of files (no body)
- aicp copy . -f json > files.json
+ cpai copy . -f json > files.json
 
  # XML wrapper
- aicp copy . --xml -o bundle.xml
+ cpai copy . --xml -o bundle.xml
 ```
 
 Notes:
 
-- When `--max-tokens` is set, AICP estimates token cost per file and selects files until the budget is reached. With `--strict`, it re-renders and trims from the end until under budget.
+- When `--max-tokens` is set, CPAI estimates token cost per file and selects files until the budget is reached. With `--strict`, it re-renders and trims from the end until under budget.
 - Markdown default includes code fences and per-file headings; use `--no-code-fences` to omit fences.
 
 ---
 
-## aicp tui [dir]
+## cpai tui [dir]
 
 Run the Ink TUI.
 
@@ -118,13 +118,13 @@ Examples:
 
 ```bash
  # Basic
- aicp tui .
+ cpai tui .
 
  # Start with saved prompts picker open
- aicp tui . --pick-prompts
+ cpai tui . --pick-prompts
 
  # Enable mouse just for this session
- aicp tui . --mouse
+ cpai tui . --mouse
 ```
 
 The Ink TUI is documented in docs/tui.md.

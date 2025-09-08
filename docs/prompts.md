@@ -1,18 +1,18 @@
 # Prompts (Saved + Ad‑Hoc)
 
-AICP composes a final prompt from:
+CPAI composes a final prompt from:
 
 1) Selected saved prompts (multi‑select)
 2) Ad‑hoc prompt text (inline or full‑screen editor)
 
-The composed prompt is added above and below the rendered files when you run `aicp copy` or use the TUI Copy action.
+The composed prompt is added above and below the rendered files when you run `cpai copy` or use the TUI Copy action.
 
 ## Saved prompts
 
 Locations (all discovered automatically):
 
-- Project: `./.aicp/prompts/` or `./prompts/`
-- Global: `~/.aicp/prompts/`
+- Project: `./.cpai/prompts/` or `./prompts/`
+- Global: `~/.cpai/prompts/`
 
 Supported file types: `.md`, `.txt`, `.prompt` (file name becomes the prompt name).
 
@@ -20,10 +20,10 @@ Name conflicts: project prompts win over global; global prompts show `(global)` 
 
 ## Auto-select via config
 
-You can have AICP automatically select saved prompts by name via config:
+You can have CPAI automatically select saved prompts by name via config:
 
-- Project: `./.aicprc.json` (or `package.json#aicp`)
-- Global: `~/.aicp/config.json`
+- Project: `./.cpairc.json` (or `package.json#cpai`)
+- Global: `~/.cpai/config.json`
 
 Project-level config supersedes global for the same field.
 

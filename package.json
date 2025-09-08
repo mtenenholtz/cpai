@@ -1,10 +1,10 @@
 {
-  "name": "aicp",
+  "name": "cpai",
   "version": "0.1.0",
   "type": "module",
   "description": "Bulk copy code/files to paste into an LLM, with token inspection & include/exclude controls.",
   "bin": {
-    "aicp": "./dist/cli.js"
+    "cpai": "./dist/cli.js"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
