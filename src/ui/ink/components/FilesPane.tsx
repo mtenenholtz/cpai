@@ -17,27 +17,16 @@ export function FilesPane(props: {
 }) {
   const rowsData = useMemo(() => {
     const s = props.state;
-    if (s.treeMode) {
-      const eligible = new Set(buildEligible(s).map((f) => f.relPath));
-      const root = buildDirTree(s.files, path.basename(s.cwd || '.'));
-      return makeVisibleTree(root, s.treeExpanded, eligible).map((v) => {
-        const tokens = v.kind === 'dir' ? v.tokens : v.file.tokens;
-        const name = v.kind === 'dir' ? (v.node.name + '/') : v.file.relPath.split('/').pop()!;
-        const indent = '  '.repeat(Math.max(0, v.depth));
-        const status = v.kind === 'dir' ? (v.mixed ? 'mixed' : v.included ? 'included' : 'excluded') : (v.included ? 'included' : 'excluded');
-        const mark = status === 'mixed' ? '◐' : status === 'included' ? '✔' : '✖';
-        return { kind: v.kind, key: v.kind === 'dir' ? `d:${v.node.path}` : `f:${v.file.relPath}`, name, indent, mark, status, tokens } as const;
-      });
-    }
-    return props.state.files.map((f) => ({
-      kind: 'file' as const,
-      key: `f:${f.relPath}`,
-      name: f.relPath,
-      indent: '',
-      status: props.state.manualExcluded.has(f.relPath) || props.state.autoDeselected.has(f.relPath) ? 'excluded' as const : 'included' as const,
-      mark: props.state.manualExcluded.has(f.relPath) || props.state.autoDeselected.has(f.relPath) ? '✖' : '✔',
-      tokens: f.tokens,
-    }));
+    const eligible = new Set(buildEligible(s).map((f) => f.relPath));
+    const root = buildDirTree(s.files, path.basename(s.cwd || '.'));
+    return makeVisibleTree(root, s.treeExpanded, eligible).map((v) => {
+      const tokens = v.kind === 'dir' ? v.tokens : v.file.tokens;
+      const name = v.kind === 'dir' ? (v.node.name + '/') : v.file.relPath.split('/').pop()!;
+      const indent = '  '.repeat(Math.max(0, v.depth));
+      const status = v.kind === 'dir' ? (v.mixed ? 'mixed' : v.included ? 'included' : 'excluded') : (v.included ? 'included' : 'excluded');
+      const mark = status === 'mixed' ? '◐' : status === 'included' ? '✔' : '✖';
+      return { kind: v.kind, key: v.kind === 'dir' ? `d:${v.node.path}` : `f:${v.file.relPath}`, name, indent, mark, status, tokens } as const;
+    });
   }, [props.state]);
 
   const vc = props.visibleCount;

@@ -63,7 +63,8 @@ Create `.aicprc.json` (or put an `aicp` field in `package.json`):
   "maxBytesPerFile": 512000,
   "model": "gpt-4o-mini",
   "encoding": "o200k_base",
-  "format": "markdown"
+  "format": "markdown",
+  "selectedPrompts": ["swe-guidelines", "acceptance-criteria"]
 }
 ```
 
@@ -129,7 +130,7 @@ This will produce something like:
   - **markdown**: `--format markdown` adds headings per file with code fences.
   - **plain**: `--format plain` uses minimal separators.
   - **json**: `--format json` prints file metadata.
-- **Config**: `.aicprc.json` and/or `package.json#aicp` provide team-wide defaults. CLI flags override config.
+- **Config**: `.aicprc.json` and/or `package.json#aicp` provide team-wide defaults. CLI flags override config. For prompts, `selectedPrompts` auto-includes saved prompts by name (project-level config supersedes global).
 
 ---
 
@@ -151,10 +152,10 @@ Layout
 - Bottom: status + condensed help (press ? for full cheatsheet)
 
 Keybindings
-- Navigation: Up/Down, j/k, PgUp/PgDn, g/G
+- Navigation: Up/Down, j/k, PgUp/PgDn
 - Selection: Space (toggle), A (all), N (none), V (invert)
 - Rules: i include globs, x exclude globs, g .gitignore, a .aicpignore, . hidden
-- Packing: b budget, s sort, m format, e XML, t Tags, p prompt
+- Packing: b budget, s sort, m format, e XML, t Tags, p edit instructions
 - Actions: c copy (clipboard), o write file
 - Help/App: ?/F1 help, q quit
 
@@ -168,12 +169,13 @@ Windows/WSL
 Troubleshooting
 - No clipboard? Use o to write to a file, or ensure OSC52 passthrough is enabled (tmux) or a system clipboard tool is installed.
 - Small terminal? Increase size; the TUI needs roughly 68×12 or larger.
+- Auto‑refresh: The TUI detects added/removed files and rescans automatically (polls every ~2s). Adjust with `AICP_TUI_POLL_MS`.
 
 ### TUI extras
 
 New flags & features:
 
-Start with prompts prefilled
+Start with instructions prefilled
 
 ```bash
 aicp tui . --prompt "Refactor for clarity"
@@ -190,9 +192,9 @@ aicp tui . --prompts-dir ./prompts --pick-prompts
 ```
 
 In the UI:
-- `p` edits an ad‑hoc prompt (included at top & bottom).
+- `p` edits ad‑hoc instructions (included at top & bottom).
 - `P` opens a Prompts Picker (space to toggle, `v` to preview, Enter to apply).
-- Saved prompts + ad‑hoc are composed together into one `<PROMPT>` block.
+- The final preface includes `<INSTRUCTIONS>` at the top, and any selected saved prompts are added beneath it as separate `<PROMPT name="...">` blocks.
 
 Layout & Tabs
 - Click the tab bar or press keys to switch: `Tree`, `Flat`, `Rank`, `Details`, `Prompts`.
@@ -230,14 +232,15 @@ L Layout  o Write  c Copy  r Rescan  q Quit
     "docs-only": {
       "include": ["README.md", "docs/**/*"],
       "exclude": ["**/*.png"],
-      "prompt": "Summarize the docs and propose improvements."
+      "prompt": "Summarize the docs and propose improvements.",
+      "selectedPrompts": ["style-guide"]
     }
   }
 }
 ```
 
 - Use a profile: `aicp copy . --profile docs-only`
-- Add/override a prompt at runtime:
+- Add/override instructions at runtime:
   - Inline: `--prompt "Refactor for clarity; note assumptions."`
   - From file: `--prompt-file .prompt.txt`
-- The prompt is inserted at the very top and bottom wrapped in `<PROMPT>...</PROMPT>` tags and counts toward the token budget when packing.
+- The instructions are inserted at the very top and bottom wrapped in `<INSTRUCTIONS>...</INSTRUCTIONS>` tags and count toward the token budget when packing. Any selected saved prompts are appended beneath the initial `<INSTRUCTIONS>` block as `<PROMPT name="...">...</PROMPT>` blocks.

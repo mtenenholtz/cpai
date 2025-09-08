@@ -92,8 +92,21 @@ export async function packFilesToBudget(
   const header = opts.header ? opts.header + "\n\n" : "";
   const approxHeaderTokens = header ? encoder.encode(header).length : 0;
   const prompt = opts.promptText ? String(opts.promptText) : "";
-  const promptBlock = prompt ? `<PROMPT>\n${prompt}\n</PROMPT>` : "";
-  const approxPromptTokens = promptBlock ? encoder.encode(promptBlock).length * 2 + 2 : 0; // top+bottom
+  // Build the top preface block: if caller already provided tagged content
+  // (e.g., <INSTRUCTIONS>...</INSTRUCTIONS> and optional <PROMPT name="..."> blocks),
+  // use it as-is; otherwise, wrap raw text in <INSTRUCTIONS> tags.
+  const preface = prompt
+    ? (prompt.includes('<INSTRUCTIONS>') || prompt.includes('<PROMPT')
+        ? prompt
+        : `<INSTRUCTIONS>\n${prompt}\n</INSTRUCTIONS>`)
+    : "";
+  // For the bottom, we duplicate only the INSTRUCTIONS block when available; if not found,
+  // duplicate the entire preface (raw instructions wrapped above).
+  const instructionsOnlyMatch = /<INSTRUCTIONS>[\s\S]*?<\/INSTRUCTIONS>/i.exec(preface);
+  const bottomBlock = instructionsOnlyMatch ? instructionsOnlyMatch[0] : preface;
+  const approxPromptTokens = preface
+    ? encoder.encode(preface).length + encoder.encode(bottomBlock).length + 2 // two blank lines between sections
+    : 0;
 
   const selected: FileEntry[] = [];
   let running = approxHeaderTokens + approxPromptTokens;
@@ -317,7 +330,14 @@ export async function formatTags(entries: FileEntry[], opts: CopyOptions): Promi
 
 export function wrapWithPrompt(body: string, prompt?: string): string {
   if (!prompt) return body;
-  const block = `<PROMPT>\n${prompt}\n</PROMPT>`;
-  const parts = [block, "", body, "", block];
+  // If caller already returns tagged content (<INSTRUCTIONS> / <PROMPT name>), use it.
+  // Otherwise, wrap raw text in <INSTRUCTIONS> tags.
+  const preface = (prompt.includes('<INSTRUCTIONS>') || prompt.includes('<PROMPT'))
+    ? prompt
+    : `<INSTRUCTIONS>\n${prompt}\n</INSTRUCTIONS>`;
+  // Duplicate only the instructions block at the bottom for emphasis; saved prompts remain at the top.
+  const instructionsOnlyMatch = /<INSTRUCTIONS>[\s\S]*?<\/INSTRUCTIONS>/i.exec(preface);
+  const bottom = instructionsOnlyMatch ? instructionsOnlyMatch[0] : preface;
+  const parts = [preface, "", body, "", bottom];
   return parts.join("\n");
 }

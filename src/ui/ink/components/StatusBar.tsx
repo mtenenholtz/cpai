@@ -1,14 +1,18 @@
 import React from 'react';
 import {Box, Text} from 'ink';
+import { stripAnsi } from '../../../lib/utils.js';
 
 export function StatusBar(props: {help: string; gauge?: string; width?: number}) {
   const raw = `${props.gauge ? props.gauge + '  •  ' : ''}${props.help}`.replace(/\r?\n/g, ' ');
-  // Leave extra headroom to avoid accidental wrapping due to wide glyphs
-  const safeW = Math.max(10, (props.width ?? 80) - 6);
-  const text = raw.length > safeW ? raw.slice(0, Math.max(0, safeW - 1)) + '…' : raw;
+  const width = Math.max(10, (props.width ?? 80));
+  // Leave a 1-char margin to avoid accidental wrap from wide glyphs / borders
+  const maxVisible = Math.max(1, width - 1);
+  const plain = stripAnsi(raw);
+  const needsTrim = plain.length > maxVisible;
+  const visible = needsTrim ? plain.slice(0, Math.max(0, maxVisible - 1)) + '…' : plain;
   return (
-    <Box>
-      <Text dimColor>{text}</Text>
+    <Box width={width}>
+      <Text dimColor wrap="truncate-end">{visible}</Text>
     </Box>
   );
 }

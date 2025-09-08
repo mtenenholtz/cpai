@@ -18,7 +18,7 @@ function isWordChar(ch: string) {
   return /\w/.test(ch);
 }
 
-export function PromptEditor(props: {
+export function InstructionsEditor(props: {
   initialValue: string;
   width: number;   // available content width (inside outer padding)
   height: number;  // total rows we can use for the editor pane
@@ -183,10 +183,8 @@ export function PromptEditor(props: {
 
   useInput((input, key) => {
     // Save / Cancel
-    if (key.ctrl && (input === 's' || input === 'S')) { props.onSubmit(joinLines(lines)); return; }
     if (key.escape) { props.onSubmit(joinLines(lines)); return; }
     if (key.ctrl && (input === 'q' || input === 'Q')) { props.onCancel(); return; }
-    if (key.ctrl && key.return) { props.onSubmit(joinLines(lines)); return; }
 
     // Normalize Backspace across terminals (DEL 0x7F or BS 0x08)
     const ch = typeof input === 'string' ? input : '';
@@ -270,11 +268,11 @@ export function PromptEditor(props: {
     );
   }
 
-  const help = 'Esc save • Ctrl+Q cancel • Ctrl+S/Ctrl+Enter save • Shift+W/B word fwd/back • Ctrl+K kill-eol • Ctrl+W del word • Arrows move • Enter newline • Tab=2 spaces';
+  const help = 'Esc save • Ctrl+Q cancel • Shift+W/B word fwd/back • Ctrl+K kill-eol • Ctrl+W del word • Arrows move • Enter newline • Tab=2 spaces';
 
   return (
     <Box borderStyle="round" borderColor="cyan" paddingX={1} paddingY={0} flexDirection="column" height={outerH}>
-      <Box height={1}><Text>Prompt Editor  |  tokens≈{tokens}</Text></Box>
+      <Box height={1}><Text>Instructions Editor  |  tokens≈{tokens}</Text></Box>
       <Box flexDirection="column" height={innerH}>
         {visible.length ? visible.map((t, i) => <Box key={i}><Text>{renderLine(i, t)}</Text></Box>) : (
           <Text dimColor>(empty)</Text>

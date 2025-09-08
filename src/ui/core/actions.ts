@@ -2,7 +2,7 @@ import path from 'node:path';
 import fs from 'node:fs/promises';
 import { globby } from 'globby';
 import type { CopyOptions, FileEntry, ScanOptions } from '../../types.js';
-import { ensureEncoder } from '../../lib/tokenizer.js';
+import { ensureEncoder, countTokens } from '../../lib/tokenizer.js';
 import { scanConcurrent } from '../../lib/scan.js';
 import { formatOutput, formatTags, formatXml, packFilesToBudget, wrapWithPrompt } from '../../lib/format.js';
 import type { State, SavedPrompt } from './state.js';
@@ -71,13 +71,17 @@ export async function rescan(
 
 export function composePrompt(state: State): string | undefined {
   const picks = state.availablePrompts.filter((p) => state.selectedPrompts.has(p.name));
-  const sections: string[] = [];
-  if (picks.length) {
-    const block = picks.map((p) => `### ${p.name}\n${p.text.trim()}`).join('\n\n');
-    sections.push(block);
+  const parts: string[] = [];
+  const instructions = state.promptText?.trim();
+  const escAttr = (s: string) => s.replaceAll('&', '&amp;').replaceAll('"', '&quot;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
+  if (instructions) {
+    parts.push(`<INSTRUCTIONS>\n${instructions}\n</INSTRUCTIONS>`);
   }
-  if (state.promptText && state.promptText.trim()) sections.push(state.promptText.trim());
-  const final = sections.join('\n\n---\n\n');
+  for (const p of picks) {
+    const name = escAttr(p.name);
+    parts.push(`<PROMPT name="${name}">\n${p.text.trim()}\n</PROMPT>`);
+  }
+  const final = parts.join('\n\n');
   return final ? final : undefined;
 }
 
@@ -117,8 +121,58 @@ export async function renderPackedText(
       ? await formatTags(selected, cfg)
       : await formatOutput(selected, cfg));
   const text = wrapWithPrompt(body, composePrompt(state));
-  const tokCount = tokens ?? selected.reduce((a, f) => a + f.tokens, 0);
+  // Ensure token count includes any instruction/prompt wrappers even when not strict
+  const tokCount = tokens ?? (await countTokens(text));
   return { text, selected, tokens: tokCount };
+}
+
+// Estimate tokens for the current selection including wrapper/prompt overhead, without reading file bodies.
+// Mirrors the approximation logic used in packFilesToBudget.
+export async function estimateTokens(entries: FileEntry[], state: State): Promise<number> {
+  const encoder = await ensureEncoder(state.model, state.encoding);
+  const md = state.format === 'markdown';
+
+  // Header is not currently used in TUI; keep for completeness
+  const header = undefined as string | undefined;
+  const approxHeaderTokens = header ? encoder.encode(header + '\n\n').length : 0;
+
+  // Compose prompt and estimate top + bottom duplication like wrapWithPrompt/packFilesToBudget
+  const prompt = composePrompt(state) ?? '';
+  const preface = prompt
+    ? (prompt.includes('<INSTRUCTIONS>') || prompt.includes('<PROMPT')
+        ? prompt
+        : `<INSTRUCTIONS>\n${prompt}\n</INSTRUCTIONS>`)
+    : '';
+  const instructionsOnlyMatch = /<INSTRUCTIONS>[\s\S]*?<\/INSTRUCTIONS>/i.exec(preface);
+  const bottomBlock = instructionsOnlyMatch ? instructionsOnlyMatch[0] : preface;
+  const approxPromptTokens = preface
+    ? encoder.encode(preface).length + encoder.encode(bottomBlock).length + 2 // two blank lines
+    : 0;
+
+  let total = approxHeaderTokens + approxPromptTokens;
+
+  for (const f of entries) {
+    let approx = f.tokens;
+    if (state.xmlWrap) {
+      const lang = '';
+      const wrapperOpen = `<file path="${f.relPath}" bytes="${f.bytes}" lines="${f.lines}" tokens="${f.tokens}" language="${lang}">\n<![CDATA[\n`;
+      const wrapperClose = `\n]]>\n</file>\n\n`;
+      approx += encoder.encode(wrapperOpen).length + encoder.encode(wrapperClose).length;
+    } else if (state.tagsWrap) {
+      const wrapperOpen = `<FILE path="${f.relPath}">\n`;
+      const wrapperClose = `\n</FILE>\n\n`;
+      approx += encoder.encode(wrapperOpen).length + encoder.encode(wrapperClose).length;
+    } else if (md) {
+      const fileHeading = `### ${f.relPath}\n\n`;
+      const fences = `\n\n\n`; // approximate for opening/closing fences + newlines
+      approx += encoder.encode(fileHeading).length + encoder.encode(fences).length + 12; // buffer
+    } else {
+      approx += 8;
+    }
+    total += approx;
+  }
+
+  return total;
 }
 
 export async function loadSavedPrompts(cwd: string, dirHint?: string): Promise<SavedPrompt[]> {

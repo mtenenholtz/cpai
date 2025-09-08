@@ -2,7 +2,7 @@ import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {Box, Text, useInput, measureElement, useApp} from 'ink';
 import {loadAicpConfig} from '../../lib/config.js';
 import {makeDefaultState, type State} from '../core/state.js';
-import {rescan, renderPackedText, loadSavedPrompts} from '../core/actions.js';
+import {rescan, renderPackedText, loadSavedPrompts, estimateTokens} from '../core/actions.js';
 import {buildEligible} from '../core/selectors.js';
 import {buildDirTree, makeVisibleTree, type VisibleNode} from '../core/tree.js';
 import {Tabs, type TabId} from './components/Tabs.js';
@@ -10,12 +10,14 @@ import {FilesPane} from './components/FilesPane.js';
 import {RankingsPane} from './components/RankingsPane.js';
 import {PromptBar} from './components/PromptBar.js';
 import {StatusBar} from './components/StatusBar.js';
+import {NotificationBar} from './components/NotificationBar.js';
 import {DetailsPane} from './components/DetailsPane.js';
-import {PromptEditor} from './components/PromptEditor.js';
+import {InstructionsEditor} from './components/InstructionsEditor.js';
 import {PromptsPicker} from './components/PromptsPicker.js';
 import clipboard from 'clipboardy';
 import {useMouse, type MouseEvent as InkMouseEvent} from './hooks/useMouse.js';
 import path from 'node:path';
+import { globby } from 'globby';
 
 export function App(props: {cwd: string; promptText?: string; promptsDir?: string; openPromptPicker?: boolean; mouse?: boolean}) {
   const { exit } = useApp();
@@ -65,13 +67,25 @@ export function App(props: {cwd: string; promptText?: string; promptsDir?: strin
   const [rankSide, setRankSide] = useState<'files' | 'dirs'>('files');
   const [rows, setRows] = useState<number>(process.stdout.rows || 24);
   const [cols, setCols] = useState<number>(process.stdout.columns || 80);
-  const [focusPrompt, setFocusPrompt] = useState(false);
+  // Inline prompt editing removed; use Instructions Editor only
   const [editingPrompt, setEditingPrompt] = useState(false);
   const [statusMsg, setStatusMsg] = useState<string>('');
+  const [notify, setNotify] = useState<{ text: string; kind: 'success' | 'error' | 'info' } | null>(null);
+  const notifyTimer = useRef<NodeJS.Timeout | null>(null);
   const [showRankNamePreview, setShowRankNamePreview] = useState(false);
   const [showPromptsPicker, setShowPromptsPicker] = useState(false);
   const filesBodyRef = useRef<any>(null);
   const ranksBodyRef = useRef<any>(null);
+  // Auto-reload internals
+  const stateRef = useRef<State | null>(null);
+  const lastFileSetRef = useRef<Set<string> | null>(null);
+  const isRescanningRef = useRef(false);
+  useEffect(() => { stateRef.current = state; }, [state]);
+  useEffect(() => {
+    return () => {
+      if (notifyTimer.current) clearTimeout(notifyTimer.current);
+    };
+  }, []);
   useEffect(() => {
     const onResize = () => {
       setRows(process.stdout.rows || 24);
@@ -88,7 +102,7 @@ export function App(props: {cwd: string; promptText?: string; promptsDir?: strin
   // helper to force rerender after mutating state (core helpers mutate in place)
   function bump(next: State) {
     // Clamp indices and viewport
-    const total = next.treeMode ? visibleNodes(next).length : next.files.length;
+    const total = visibleNodes(next).length;
     if (next.selectedIdx < 0) next.selectedIdx = 0;
     if (next.selectedIdx >= total) next.selectedIdx = Math.max(0, total - 1);
     const vc = visibleCount();
@@ -118,6 +132,12 @@ export function App(props: {cwd: string; promptText?: string; promptsDir?: strin
         const s = makeDefaultState(cwd, fileCfg);
         s.promptText = props.promptText ?? s.promptText;
         s.availablePrompts = await loadSavedPrompts(cwd, props.promptsDir);
+        // Auto-select saved prompts configured in project/global config (project wins by loadAicpConfig merge)
+        const autoNames: string[] | undefined = (fileCfg as any).selectedPrompts;
+        if (autoNames && autoNames.length) {
+          const namesSet = new Set(autoNames);
+          s.selectedPrompts = new Set(s.availablePrompts.filter(p => namesSet.has(p.name)).map(p => p.name));
+        }
         await rescan(s, (d, t) => setProgress({done: d, total: t}));
         setState({...s});
       } catch (e: any) {
@@ -126,18 +146,73 @@ export function App(props: {cwd: string; promptText?: string; promptsDir?: strin
     })();
   }, [cwd]);
 
-  // Keybindings: j/k/g/G, space, T, Ctrl-R, q/C-c; p to focus prompt; d to toggle details/rank
+  // Keep last seen list of files for change detection
+  useEffect(() => {
+    if (!state) return;
+    lastFileSetRef.current = new Set(state.files.map((f) => f.relPath));
+  }, [state]);
+
+  // Auto-reload: poll for added/removed files and rescan when list changes
+  useEffect(() => {
+    let cancelled = false;
+    const pollMs = Number(process.env.AICP_TUI_POLL_MS || '') || 2000;
+
+    async function check() {
+      if (cancelled) return;
+      const s = stateRef.current;
+      if (!s) return;
+      if (isRescanningRef.current) return;
+      try {
+        const patterns = s.include?.length ? s.include : ['**/*'];
+        const paths = await globby(patterns, {
+          cwd: s.cwd,
+          gitignore: s.useGitignore,
+          ignore: s.exclude,
+          dot: s.hidden,
+          onlyFiles: true,
+          followSymbolicLinks: false,
+        });
+        const curr = new Set(paths.map((p: string) => p.split(path.sep).join('/')));
+        const prev = lastFileSetRef.current || new Set<string>();
+        let changed = curr.size !== prev.size;
+        if (!changed) {
+          for (const p of curr) { if (!prev.has(p)) { changed = true; break; } }
+          if (!changed) {
+            for (const p of prev) { if (!curr.has(p)) { changed = true; break; } }
+          }
+        }
+        if (changed) {
+          isRescanningRef.current = true;
+          setProgress({ done: 0, total: 0 });
+          await rescan(s, (d, t) => setProgress({ done: d, total: t }));
+          setProgress(null);
+          lastFileSetRef.current = new Set(s.files.map((f) => f.relPath));
+          setState({ ...s });
+        }
+      } catch {
+        // ignore errors during polling
+      } finally {
+        isRescanningRef.current = false;
+      }
+    }
+
+    const timer = setInterval(check, pollMs);
+    return () => { cancelled = true; clearInterval(timer); };
+  }, [cwd]);
+
+  // Keybindings: j/k, space, Ctrl-R, q/C-c; p opens Instructions Editor; d toggles details/rank
   useInput((input, key) => {
     if (!state) return;
     if (editingPrompt) return;
-    if (focusPrompt) {
-      // While prompt has focus, let TextInput consume input; Esc exits
-      if (key.escape) setFocusPrompt(false);
+    // When saved prompts picker is open, let it consume input; only allow Ctrl+P to close it
+    if (showPromptsPicker) {
+      if (key.ctrl && input === 'p') { setShowPromptsPicker(false); }
       return;
     }
     // Hotkeys only; numeric shortcuts disabled
-    if (key.ctrl && input === 'p') { setShowPromptsPicker(true); return; }
-    if (input === 'P') { setEditingPrompt(true); return; }
+    // Ctrl+P toggles saved prompts picker (opens/closes if already open)
+    if (key.ctrl && input === 'p') { setShowPromptsPicker((v) => !v); return; }
+    // Shift+P removed; use 'p' to open the editor
     if (key.ctrl && input === 'c') { exit(); return; }
     if (input === 'q') { exit(); return; }
     if (key.ctrl && input === 'r') {
@@ -149,7 +224,7 @@ export function App(props: {cwd: string; promptText?: string; promptsDir?: strin
       })();
       return;
     }
-    if (input === 'P') { setEditingPrompt(true); return; }
+    // Shift+P removed; use 'p' to open the editor
     if (input === 'c') {
       (async () => {
         try {
@@ -158,27 +233,38 @@ export function App(props: {cwd: string; promptText?: string; promptsDir?: strin
           const { text, selected, tokens } = await renderPackedText(eligible, state);
           try {
             await clipboard.write(text);
-            setStatusMsg(`Copied ${selected.length} files (≈${tokens})`);
+            setStatusMsg(`Copied ${tokens} tokens to clipboard`);
+            if (notifyTimer.current) clearTimeout(notifyTimer.current);
+            setNotify({ text: `Copied ${tokens} tokens to clipboard`, kind: 'success' });
+            notifyTimer.current = setTimeout(() => setNotify(null), 2000);
           } catch (e: any) {
             const ok = osc52Copy(text);
-            if (ok) setStatusMsg(`Copied ${selected.length} files via OSC52`);
-            else setStatusMsg(`Clipboard failed: ${e?.message ?? e}`);
+            if (ok) {
+              setStatusMsg(`Copied ${tokens} tokens to clipboard`);
+              if (notifyTimer.current) clearTimeout(notifyTimer.current);
+              setNotify({ text: `Copied ${tokens} tokens to clipboard`, kind: 'success' });
+              notifyTimer.current = setTimeout(() => setNotify(null), 2000);
+            } else {
+              const msg = `Clipboard failed: ${e?.message ?? e}`;
+              setStatusMsg(msg);
+              if (notifyTimer.current) clearTimeout(notifyTimer.current);
+              setNotify({ text: msg, kind: 'error' });
+              notifyTimer.current = setTimeout(() => setNotify(null), 2500);
+            }
           }
         } catch (e: any) {
-          setStatusMsg(`Copy failed: ${e?.message ?? e}`);
+          const msg = `Copy failed: ${e?.message ?? e}`;
+          setStatusMsg(msg);
+          if (notifyTimer.current) clearTimeout(notifyTimer.current);
+          setNotify({ text: msg, kind: 'error' });
+          notifyTimer.current = setTimeout(() => setNotify(null), 2500);
         }
       })();
       return;
     }
-    if (input === 'p') { setFocusPrompt(true); return; }
+    if (input === 'p') { setEditingPrompt(true); return; }
     if (input === 'd') { state.paneMode = state.paneMode === 'rank' ? 'details' : 'rank'; bump(state); return; }
-    if (input === 'T') {
-      state.treeMode = !state.treeMode;
-      if (state.treeMode && !state.treeExpanded.has('.')) state.treeExpanded.add('.');
-      bump(state);
-      return;
-    }
-    if (state.treeMode && (input === 'h')) {
+    if (focusPane === 'files' && (input === 'h')) {
       const vis = visibleNodes(state);
       const node = vis[state.selectedIdx];
       if (node && node.kind === 'dir' && node.node.path !== '.' && state.treeExpanded.has(node.node.path)) {
@@ -187,7 +273,7 @@ export function App(props: {cwd: string; promptText?: string; promptsDir?: strin
       }
       return;
     }
-    if (state.treeMode && (input === 'l')) {
+    if (focusPane === 'files' && (input === 'l')) {
       const vis = visibleNodes(state);
       const node = vis[state.selectedIdx];
       if (node && node.kind === 'dir') {
@@ -207,7 +293,13 @@ export function App(props: {cwd: string; promptText?: string; promptsDir?: strin
       return;
     }
     // Toggle full-name preview for Rankings entries (e/E)
-    if ((input === 'e' || input === 'E') && focusPane === 'rankings') { setShowRankNamePreview((v) => !v); return; }
+    // When the preview dialog is already open, ignore this key here so the dialog's
+    // own handler can close it without immediately reopening.
+    if ((input === 'e' || input === 'E') && focusPane === 'rankings') {
+      if (showRankNamePreview) { return; }
+      setShowRankNamePreview(true);
+      return;
+    }
     if (input === 'l') {
       if (focusPane === 'files') {
         setFocusPane('rankings');
@@ -234,26 +326,11 @@ export function App(props: {cwd: string; promptText?: string; promptsDir?: strin
       }
       return;
     }
-    if (input === 'g') {
-      if (focusPane === 'files') { state.selectedIdx = 0; bump(state); }
-      else { setRankIdx(0); setRankTop(0); }
-      return;
-    }
-    if (input === 'G') {
-      if (focusPane === 'files') {
-        const total = state.treeMode ? visibleNodes(state).length : state.files.length;
-        state.selectedIdx = Math.max(0, total - 1); bump(state);
-      } else {
-        const total = computeRankRowCount(state);
-        const last = Math.max(0, total - 1);
-        setRankIdx(last);
-        ensureRankVisible(last);
-      }
-      return;
-    }
+    // removed g/G hotkeys (home/end)
 
     if (input === ' ') {
-      if (state.treeMode) {
+      if (focusPane === 'files') {
+        // Toggle include/exclude from the Files pane selection
         const vis = visibleNodes(state);
         const node = vis[state.selectedIdx];
         if (!node) return;
@@ -270,14 +347,57 @@ export function App(props: {cwd: string; promptText?: string; promptsDir?: strin
             }
           }
         }
-      } else {
-        const f = state.files[state.selectedIdx];
-        if (f) {
-          if (state.manualExcluded.has(f.relPath)) state.manualExcluded.delete(f.relPath); else state.manualExcluded.add(f.relPath);
+        bump(state);
+        return;
+      }
+      if (focusPane === 'rankings') {
+        // Toggle the highlighted Rankings item (file or folder)
+        const eligible0 = buildEligible(state);
+        const mutedDirs = [...state.rankMutedDirs];
+        const isDirMuted = (p: string) => mutedDirs.some((d) => d === p || p.startsWith(d.endsWith('/') ? d : d + '/'));
+        const eligible = eligible0.filter((f) => !state.rankMutedFiles.has(f.relPath) && !isDirMuted(path.posix.dirname(f.relPath)));
+        const topFiles = [...eligible].sort((a, b) => b.tokens - a.tokens);
+        const byDir = new Map<string, number>();
+        for (const f of eligible) {
+          const d = path.posix.dirname(f.relPath);
+          byDir.set(d, (byDir.get(d) ?? 0) + f.tokens);
+        }
+        const topDirs = [...byDir.entries()].filter(([d]) => !isDirMuted(d)).sort((a, b) => b[1] - a[1]);
+        if (rankSide === 'files') {
+          const f = topFiles[rankIdx];
+          if (f) {
+            if (state.manualExcluded.has(f.relPath)) state.manualExcluded.delete(f.relPath); else state.manualExcluded.add(f.relPath);
+            bump(state);
+          }
+          return;
+        } else {
+          const entry = topDirs[rankIdx];
+          if (entry) {
+            const dir = entry[0]; // posix dirname ('' for root)
+            const prefix = dir ? dir + '/' : '';
+            // Compute inclusion stats for this directory similar to tree toggling
+            let total = 0;
+            let included = 0;
+            for (const f of state.files) {
+              if (prefix === '' ? true : f.relPath.startsWith(prefix)) {
+                total++;
+                if (!state.manualExcluded.has(f.relPath) && !state.autoDeselected.has(f.relPath)) included++;
+              }
+            }
+            const fullyIncluded = total > 0 && included === total;
+            const mixed = included > 0 && included < total;
+            const makeExcluded = !(fullyIncluded && !mixed);
+            for (const f of state.files) {
+              if (prefix === '' ? true : f.relPath.startsWith(prefix)) {
+                if (makeExcluded) state.manualExcluded.delete(f.relPath);
+                else state.manualExcluded.add(f.relPath);
+              }
+            }
+            bump(state);
+          }
+          return;
         }
       }
-      bump(state);
-      return;
     }
     if (input === 'w') {
       setFocusPane((p) => {
@@ -302,11 +422,21 @@ export function App(props: {cwd: string; promptText?: string; promptsDir?: strin
     }
   }
 
-  const tokenGauge = useMemo(() => {
-    if (!state) return '';
-    const eligible = buildEligible(state);
-    const totalTok = eligible.reduce((a, f) => a + f.tokens, 0);
-    return state.maxTokens ? `tokens ${totalTok}/${state.maxTokens}` : `tokens≈${totalTok}`;
+  const [tokenGauge, setTokenGauge] = useState<string>('');
+  useEffect(() => {
+    (async () => {
+      if (!state) { setTokenGauge(''); return; }
+      try {
+        const eligible = buildEligible(state);
+        const totalTok = await estimateTokens(eligible, state);
+        setTokenGauge(state.maxTokens ? `tokens ${totalTok}/${state.maxTokens}` : `tokens≈${totalTok}`);
+      } catch {
+        // Fallback to simple sum if estimation fails
+        const eligible = state ? buildEligible(state) : [];
+        const totalTok = eligible.reduce((a, f) => a + f.tokens, 0);
+        setTokenGauge(state?.maxTokens ? `tokens ${totalTok}/${state.maxTokens}` : `tokens≈${totalTok}`);
+      }
+    })();
   }, [state]);
 
   function computeRankRowCount(s: State): number {
@@ -325,7 +455,7 @@ export function App(props: {cwd: string; promptText?: string; promptsDir?: strin
   // Ensure rankings selection is within the visible window by adjusting rankTop
   function ensureRankVisible(targetIdx: number) {
     if (!state) return;
-    const g = calcGeometry({ rows: rows || 24, cols: cols || 80, focusPane, paneMode: state.paneMode });
+    const g = calcGeometry({ rows: rows || 24, cols: cols || 80, focusPane, paneMode: state.paneMode, hasNotif: !!notify });
     const vc = Math.max(1, g.ranksBodyH);
     setRankTop((t) => {
       let top = t;
@@ -341,13 +471,15 @@ export function App(props: {cwd: string; promptText?: string; promptsDir?: strin
     cols: number;
     focusPane: 'files' | 'rankings';
     paneMode: State['paneMode'];
+    hasNotif?: boolean;
   }) {
     const { rows, cols, focusPane } = opts;
     const safetyLocal = 1;
     const tabsH = 1;
     const promptH = 1;
+    const notifHLocal = opts.hasNotif ? 1 : 0;
     const statusH = 1;
-    const midHLocal = Math.max(3, rows - tabsH - promptH - statusH - safetyLocal);
+    const midHLocal = Math.max(3, rows - tabsH - promptH - notifHLocal - statusH - safetyLocal);
     const innerHLocal = Math.max(1, midHLocal - 2); // minus borders
     const filesBodyHLocal = Math.max(1, innerHLocal - 2); // minus title+headers
     const ranksBodyHLocal = Math.max(1, innerHLocal - 2);
@@ -394,7 +526,7 @@ export function App(props: {cwd: string; promptText?: string; promptsDir?: strin
         y: 1,
         x1: contentX1,
         width: contentW,
-        slotW: Math.max(1, Math.floor(contentW / 3)),
+        slotW: contentW,
       },
     };
   }
@@ -405,31 +537,31 @@ export function App(props: {cwd: string; promptText?: string; promptsDir?: strin
     if (!s) return;
     // Use a local computed viewport height; when rows are small contentH will be recomputed later too
     const total = computeRankRowCount(s);
-    const vcLocal = Math.max(1, (rows || 24) - 1 - 1 - 1 - 1 - 3); // rows - tabs - prompt - status - safety - borders/header
+    const vcLocal = Math.max(1, (rows || 24) - 1 - 1 - (notify ? 1 : 0) - 1 - 1 - 3); // rows - tabs - prompt - notif - status - safety - borders/header
     setRankIdx((i) => Math.max(0, Math.min(i, Math.max(0, total - 1))));
     ensureRankVisible(rankIdx);
-  }, [state, rows]);
+  }, [state, rows, notify]);
 
   // Mouse support: click to select/focus; wheel to scroll
   const handleMouse = useCallback((ev: InkMouseEvent) => {
     try {
       if (!state) return;
-      if (focusPrompt) return; // disable mouse interactions while typing prompt
-      const g = calcGeometry({ rows: rows || 24, cols: cols || 80, focusPane, paneMode: state.paneMode });
+      if (editingPrompt || showPromptsPicker) return; // disable during overlays
+      const g = calcGeometry({ rows: rows || 24, cols: cols || 80, focusPane, paneMode: state.paneMode, hasNotif: !!notify });
 
       // Files pane
       const inFiles = ev.x >= g.leftBoxX1 && ev.x <= g.leftBoxX2 && ev.y >= g.filesBodyY1 && ev.y <= g.filesBodyY2;
       if (inFiles) {
         if (ev.type === 'wheelUp') { setViewTop((t) => Math.max(0, t - 3)); return; }
         if (ev.type === 'wheelDown') {
-          const total = state.treeMode ? visibleNodes(state).length : state.files.length;
+          const total = visibleNodes(state).length;
           const maxTop = Math.max(0, total - g.filesBodyH);
           setViewTop((t) => Math.min(maxTop, t + 3));
           return;
         }
         if (ev.type === 'down') {
           const row = ev.y - g.filesBodyY1; // 0-based inside body
-          const total = state.treeMode ? visibleNodes(state).length : state.files.length;
+          const total = visibleNodes(state).length;
           const targetIdx = Math.max(0, Math.min(total - 1, viewTop + row));
           setFocusPane('files');
           state.selectedIdx = targetIdx; bump(state);
@@ -461,17 +593,15 @@ export function App(props: {cwd: string; promptText?: string; promptsDir?: strin
         }
       }
 
-      // Tabs click: map x to one of 3 slots (Tree, Flat, Prompts)
+      // Tabs click: open the Instructions Editor
       if (ev.type === 'down' && ev.y === g.tabs.y) {
-        const slot = Math.min(2, Math.max(0, Math.floor((ev.x - g.tabs.x1) / g.tabs.slotW)));
-        if (slot === 0) { state.treeMode = true; bump(state); return; }
-        if (slot === 1) { state.treeMode = false; bump(state); return; }
-        if (slot === 2) { setFocusPrompt(true); return; }
+        setEditingPrompt(true);
+        return;
       }
     } catch {}
-  }, [rows, cols, focusPane, state, viewTop, rankTop, focusPrompt]);
+  }, [rows, cols, focusPane, state, viewTop, rankTop, editingPrompt, showPromptsPicker, notify]);
 
-  const mouseAllowed = !!props.mouse && !focusPrompt && !editingPrompt;
+  const mouseAllowed = !!props.mouse && !editingPrompt && !showPromptsPicker;
   useMouse(handleMouse, mouseAllowed);
   useEffect(() => {
     if (!mouseAllowed) {
@@ -497,40 +627,45 @@ export function App(props: {cwd: string; promptText?: string; promptsDir?: strin
     </Box>
   );
 
-  // Height budget: Tabs(1) + Prompt(1) + Status(1) + safety(1)
+  // Height budget: Tabs(1) + Prompt(1) + optional Notification(1) + Status(1) + safety(1)
   const safety = 1; // spare row to absorb any wrap
-  const midH = Math.max(3, (rows || 24) - 1 - 1 - 1 - safety);
+  const notifH = notify ? 1 : 0;
+  const midH = Math.max(3, (rows || 24) - 1 - 1 - notifH - 1 - safety);
   // Inner area for each bordered pane (exclude top/bottom border)
   const innerH = Math.max(1, midH - 2);
   // Body heights inside panes
   const filesBody = Math.max(1, innerH - 2);     // minus title and headers
   const ranksBody = Math.max(1, innerH - 2);     // minus title and headers
   const safeCols = Math.max(10, (cols || 80) - 2); // account for root paddingX={1}
-  const fullHelp = `${focusPane === 'files' ? 'Files' : 'Rankings'} • j/k scroll • g/G home/end • space toggle • T tree/flat • d details/rank • w swap • p prompt • Shift+P editor • Ctrl-R rescan • q quit${statusMsg ? ' • ' + statusMsg : ''}`;
-  const shortHelp = `${focusPane === 'files' ? 'Files' : 'Rankings'} • j/k • g/G • space • T • d • w • p • Shift+P • Ctrl-R • q${statusMsg ? ' • ' + statusMsg : ''}`;
+  const fullHelp = `j/k scroll • space toggle • d details/rank • w swap • p edit instructions • Ctrl-R rescan • q quit${statusMsg ? ' • ' + statusMsg : ''}`;
+  const shortHelp = `j/k • space • d • w • p edit instructions • Ctrl-R • q${statusMsg ? ' • ' + statusMsg : ''}`;
   const help = safeCols >= 108 ? fullHelp : shortHelp;
+  const promptsSuffix = !showPromptsPicker
+    ? (() => {
+        const selNames = state.selectedPrompts ? [...state.selectedPrompts] : [];
+        return selNames.length ? `Prompts: ${selNames.join(', ')}` : 'Prompts: none';
+      })()
+    : undefined;
+  // tokens gauge is shown on the top-right via Tabs.right
 
   // moved above the early returns; see earlier block
 
-  const activeTab: TabId = state.treeMode ? 'tree' : 'flat';
-  const onSelectTab = (id: TabId) => {
-    if (!state) return;
-    if (id === 'tree') { state.treeMode = true; bump(state); }
-    else if (id === 'flat') { state.treeMode = false; bump(state); }
-    else if (id === 'prompts') { setFocusPrompt(true); }
+  const activeTab: TabId = 'prompts';
+  const onSelectTab = (_id: TabId) => {
+    setEditingPrompt(true);
   };
 
   return (
     <Box flexDirection="column" paddingX={1}>
-      <Tabs active={activeTab} onSelect={onSelectTab} />
+      <Tabs active={activeTab} onSelect={onSelectTab} suffix={promptsSuffix} right={tokenGauge} width={safeCols} />
       <Box height={midH}>
         {editingPrompt ? (
-          <PromptEditor
+          <InstructionsEditor
             initialValue={state.promptText ?? ''}
             width={safeCols}
             height={midH}
-            onSubmit={(text) => { state.promptText = text; bump(state); setEditingPrompt(false); setStatusMsg('Prompt saved'); }}
-            onCancel={() => { setEditingPrompt(false); setStatusMsg('Prompt edit canceled'); }}
+            onSubmit={(text) => { state.promptText = text; bump(state); setEditingPrompt(false); setStatusMsg('Instructions saved'); }}
+            onCancel={() => { setEditingPrompt(false); setStatusMsg('Instructions edit canceled'); }}
           />
         ) : showPromptsPicker ? (
           <PromptsPicker
@@ -609,21 +744,16 @@ export function App(props: {cwd: string; promptText?: string; promptsDir?: strin
                   </Box>
                 </>
               ) : (
-                <DetailsPane state={state} treeMode={state.treeMode} selectedIdx={state.selectedIdx} height={Math.max(1, innerH - 1)} />
+                <DetailsPane state={state} selectedIdx={state.selectedIdx} height={Math.max(1, innerH - 1)} />
               )}
               </Box>
             </>
           );
         })()}
       </Box>
-      <PromptBar
-        value={state.promptText ?? ''}
-        onChange={(v) => { state.promptText = v; bump(state); }}
-        focused={focusPrompt}
-        onSubmit={() => setFocusPrompt(false)}
-        onOpenEditor={() => setEditingPrompt(true)}
-      />
-      <StatusBar help={help} gauge={tokenGauge} width={safeCols} />
+      <PromptBar width={safeCols} />
+      {notify ? <NotificationBar message={notify.text} kind={notify.kind} width={safeCols} /> : null}
+      <StatusBar help={help} width={safeCols} />
     </Box>
   );
 }

@@ -11,6 +11,7 @@ import { formatOutput, packFilesToBudget, renderJson, formatXml, formatTags, wra
 import { extnameLower, humanBytes, sortBy, toPosix, padPlain } from "./lib/utils.js";
 import type { CopyOptions, ScanOptions } from "./types.js";
 import { getTuiAdapter } from "./ui/adapter.js";
+import os from "node:os";
 
 const program = new Command();
 // Friendlier error UX
@@ -226,14 +227,61 @@ program
       const cfgFile: string | undefined = (fileCfg.promptFile as string | undefined) || undefined;
 
       const pickFile = cliFile || profFile || cfgFile;
+      let instructions: string | undefined = undefined;
       if (pickFile) {
         try {
           const p = path.isAbsolute(pickFile) ? pickFile : path.join(cwd, pickFile);
-          return await fs.readFile(p, "utf8");
+          instructions = await fs.readFile(p, "utf8");
         } catch (e) {}
       }
-      const pickText = cliText || profText || cfgText;
-      return pickText ? String(pickText) : undefined;
+      if (!instructions) {
+        const pickText = cliText || profText || cfgText;
+        instructions = pickText ? String(pickText) : undefined;
+      }
+
+      // Compose with saved prompts selected via config/profile
+      const selectedNames: string[] | undefined = (profile?.selectedPrompts as string[] | undefined) ?? (fileCfg.selectedPrompts as string[] | undefined);
+      if (!selectedNames || selectedNames.length === 0) return instructions;
+
+      // Load saved prompts from project and global locations, preferring project names
+      const saved = await (async () => {
+        const home = os.homedir?.() || process.env.HOME || process.env.USERPROFILE || '';
+        const globalDir = home ? path.join(home, '.aicp', 'prompts') : null;
+        const candidates = [
+          path.join(cwd, '.aicp/prompts'),
+          path.join(cwd, 'prompts'),
+          globalDir
+        ].filter(Boolean) as string[];
+        const out: { name: string; text: string }[] = [];
+        for (const c of candidates) {
+          try {
+            const items = await fs.readdir(c, { withFileTypes: true });
+            for (const d of items) {
+              if (!d.isFile()) continue;
+              const ext = path.extname(d.name).toLowerCase();
+              if (!['.md', '.txt', '.prompt'].includes(ext)) continue;
+              const nm = path.basename(d.name, ext);
+              const p = path.join(c, d.name);
+              const text = await fs.readFile(p, 'utf8');
+              out.push({ name: nm, text });
+            }
+          } catch {}
+        }
+        const map = new Map<string, { name: string; text: string }>();
+        for (const p of out) if (!map.has(p.name)) map.set(p.name, p);
+        return map;
+      })();
+
+      const parts: string[] = [];
+      if (instructions && instructions.trim()) parts.push(`<INSTRUCTIONS>\n${instructions.trim()}\n</INSTRUCTIONS>`);
+      for (const name of selectedNames) {
+        const sp = saved.get(name);
+        if (!sp) continue;
+        const esc = (s: string) => s.replaceAll('&', '&amp;').replaceAll('"', '&quot;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
+        parts.push(`<PROMPT name="${esc(sp.name)}">\n${sp.text.trim()}\n</PROMPT>`);
+      }
+      const final = parts.join('\n\n');
+      return final || instructions;
     }
 
     const promptText = await readPromptText();
@@ -343,7 +391,7 @@ program
   .command("tui [dir]")
   .description("Interactive TUI to browse, filter, and bundle files")
   .option("-C, --cwd <dir>", "working directory (defaults to dir)", "")
-  .option("--prompt <text>", "prefill an ad-hoc prompt", "")
+  .option("--prompt <text>", "prefill ad-hoc instructions", "")
   .option("--prompt-file <path>", "prefill a prompt from a file")
   .option(
     "--prompts-dir <dir>",

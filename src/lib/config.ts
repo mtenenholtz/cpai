@@ -17,6 +17,10 @@ export type AicpConfig = {
   // Optional default prompt included at top and bottom
   prompt?: string;
   promptFile?: string;
+  // Saved prompts (by name) to auto-select/include
+  // - In TUI: pre-selects in the Saved Prompts picker
+  // - In CLI copy: includes these saved prompts in the composed prompt
+  selectedPrompts?: string[];
   // Named profiles that can override include/exclude and prompt per run
   profiles?: Record<string, AicpProfile>;
 };
@@ -33,6 +37,8 @@ export type AicpProfile = {
   format?: "markdown" | "plain" | "json";
   prompt?: string;
   promptFile?: string;
+  // Saved prompts (by name) to auto-select/include for this profile
+  selectedPrompts?: string[];
   tagsWrap?: boolean;
   xmlWrap?: boolean;
   codeFences?: boolean;
@@ -42,7 +48,7 @@ export type AicpProfile = {
   mouse?: boolean;
 };
 
-export const DEFAULT_CONFIG: Required<Omit<AicpConfig, "profiles" | "prompt" | "promptFile">> = {
+export const DEFAULT_CONFIG: Required<Omit<AicpConfig, "profiles" | "prompt" | "promptFile" | "selectedPrompts">> = {
   include: ["**/*"],
   exclude: [
     "**/{node_modules,dist,build,.git,.next,.cache,coverage}/**",
