@@ -118,18 +118,36 @@ cpai copy . --include "src/**/*,README.md" --exclude "src/**/*.test.ts" --max-to
 
 This will produce something like:
 
-````md
-### src/index.ts
+If you have saved prompts configured (via `selectedPrompts` or the TUI picker), you’ll see `<PROMPT name="…">…</PROMPT>` blocks at the top; only `<INSTRUCTIONS>` is duplicated at the end.
 
-```ts
-// your file contents…
-```
+````text
+<INSTRUCTIONS>
+Briefly state the goal or task for the model.
+</INSTRUCTIONS>
 
-### src/utils.ts
+<PROMPT name="style-guide">
+Optional saved prompt content (e.g., coding or review guidelines).
+</PROMPT>
 
-```ts
-// …
-```
+<TREE>
+project/
+├─ src/
+│  ├─ index.ts
+│  └─ utils.ts
+└─ README.md
+</TREE>
+
+<FILE_1 path="src/index.ts">
+// file contents…
+</FILE_1>
+
+<FILE_2 path="src/utils.ts">
+// file contents…
+</FILE_2>
+
+<INSTRUCTIONS>
+Briefly state the goal or task for the model.
+</INSTRUCTIONS>
 ````
 
 ---
