@@ -250,11 +250,14 @@ program
       // Load saved prompts from project and global locations, preferring project names
       const saved = await (async () => {
         const home = os.homedir?.() || process.env.HOME || process.env.USERPROFILE || '';
-        const globalDir = home ? path.join(home, '.aicp', 'prompts') : null;
+        const globalDirNew = home ? path.join(home, '.cpai', 'prompts') : null;
+        const globalDirOld = home ? path.join(home, '.aicp', 'prompts') : null;
         const candidates = [
+          path.join(cwd, '.cpai/prompts'),
           path.join(cwd, '.aicp/prompts'),
           path.join(cwd, 'prompts'),
-          globalDir
+          globalDirNew,
+          globalDirOld
         ].filter(Boolean) as string[];
         const out: { name: string; text: string }[] = [];
         for (const c of candidates) {
@@ -402,7 +405,7 @@ program
   .option("--prompt-file <path>", "[deprecated] use --instructions-file instead")
   .option(
     "--prompts-dir <dir>",
-    "directory of saved prompts to pick (default: ./prompts or ./.aicp/prompts)"
+    "directory of saved prompts to pick (default: ./prompts or ./.cpai/prompts; legacy ./.aicp/prompts)"
   )
   .option("--pick-prompts", "open saved prompts picker on launch", false)
   .option("--mouse", "enable mouse hover/selection in the TUI (overrides config)")

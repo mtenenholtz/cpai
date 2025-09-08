@@ -1,17 +1,17 @@
 # Configuration
 
-AICP supports both project-level and global configuration. All formats are JSON.
+CPAI supports both project-level and global configuration. All formats are JSON.
 
-- Project: `./.aicprc.json` or `package.json#aicp`
-- Global: `~/.aicp/config.json` (created via `aicp init --global`)
+- Project: `./.cpairc.json` or `package.json#cpai` (legacy: `.aicprc.json` or `package.json#aicp`)
+- Global: `~/.cpai/config.json` (created via `cpai init --global`) (legacy: `~/.aicp/config.json`)
 
 Precedence: CLI flags > project config > global config > defaults.
 
 ## Paths
 
-- Global config: `~/.aicp/config.json`
-- Global ignores: `~/.aicp/.aicpignore`
-- Global prompts: `~/.aicp/prompts/`
+- Global config: `~/.cpai/config.json`
+- Global ignores: `~/.cpai/.cpaiignore` (legacy: `~/.aicp/.aicpignore`)
+- Global prompts: `~/.cpai/prompts/` (legacy: `~/.aicp/prompts/`)
 
 ## Keys
 
@@ -20,7 +20,7 @@ Precedence: CLI flags > project config > global config > defaults.
   "include": ["**/*"],               // globs
   "exclude": ["**/node_modules/**"], // globs
   "useGitignore": true,
-  "useAicpIgnore": true,              // honors project + global ~/.aicp/.aicpignore
+  "useAicpIgnore": true,              // honors project + global ~/.cpai/.cpaiignore
   "hidden": false,
   "maxBytesPerFile": 512000,
   "model": "gpt-4o-mini",
@@ -32,7 +32,7 @@ Precedence: CLI flags > project config > global config > defaults.
   "prompt": "...",
   "promptFile": "./prompts/use-this.md",
 
-  // Profiles (used by aicp copy -P <name>)
+  // Profiles (used by cpai copy -P <name>)
   "profiles": {
     "release": {
       "include": ["src/**", "README.md"],
@@ -46,21 +46,21 @@ Precedence: CLI flags > project config > global config > defaults.
 
 ## Profiles
 
-Profiles let you save named presets for `aicp copy`. All fields merge over base config.
+Profiles let you save named presets for `cpai copy`. All fields merge over base config.
 
 ```bash
- aicp copy . -P release --clip --max-tokens 120000
+ cpai copy . -P release --clip --max-tokens 120000
 ```
 
 ## Global config
 
 ```bash
- aicp init --global
- # edit ~/.aicp/config.json
+ cpai init --global
+ # edit ~/.cpai/config.json
 ```
 
 ## Mouse
 
 - Default `mouse: false` to keep key-only UX predictable.
-- Enable per-run via `aicp tui . --mouse`.
+- Enable per-run via `cpai tui . --mouse`.
 - When disabled, the TUI explicitly sends terminal “mouse off” sequences to avoid stray input from prior sessions.

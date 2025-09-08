@@ -57,7 +57,7 @@ Actions:
 
 ## Saved prompts
 
-- Sources: project (`./.aicp/prompts` or `./prompts`) and global (`~/.aicp/prompts`)
+- Sources: project (`./.cpai/prompts` or `./prompts`) and global (`~/.cpai/prompts`) — legacy `.aicp/prompts` is still supported
 - In pickers, global prompts are labeled `(global)`
 - Selected prompts are prepended and appended as sections when composing the final prompt
 
