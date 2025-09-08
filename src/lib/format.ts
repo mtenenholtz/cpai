@@ -212,8 +212,8 @@ function encodeCdata(text: string): string {
 
 type DirNode = { name: string; dirs: Map<string, DirNode>; files: string[] };
 
-function buildTree(paths: string[]): DirNode {
-  const root: DirNode = { name: ".", dirs: new Map(), files: [] };
+function buildTree(paths: string[], rootName: string = '.'): DirNode {
+  const root: DirNode = { name: rootName, dirs: new Map(), files: [] };
   for (const p of paths) {
     const parts = p.split("/");
     let node = root;
@@ -267,8 +267,9 @@ export async function formatXml(entries: FileEntry[], opts: CopyOptions): Promis
   }
 
   // Tree view for the selected entries
-  const treeRoot = buildTree(entries.map((e) => e.relPath));
-  const treeAscii = ["./", ...renderTreeAscii(treeRoot)].join("\n");
+  const rootLabel = path.basename(opts.cwd || '.') + '/';
+  const treeRoot = buildTree(entries.map((e) => e.relPath), path.basename(opts.cwd || '.'));
+  const treeAscii = [rootLabel, ...renderTreeAscii(treeRoot)].join("\n");
   lines.push("  <tree>");
   lines.push("    <![CDATA[");
   for (const l of treeAscii.split("\n")) lines.push("    " + l);
@@ -296,8 +297,9 @@ export async function formatXml(entries: FileEntry[], opts: CopyOptions): Promis
 export async function formatTags(entries: FileEntry[], opts: CopyOptions): Promise<string> {
   const lines: string[] = [];
   // Tree view at the top
-  const treeRoot = buildTree(entries.map((e) => e.relPath));
-  const treeAscii = ["./", ...renderTreeAscii(treeRoot)].join("\n");
+  const rootLabel = path.basename(opts.cwd || '.') + '/';
+  const treeRoot = buildTree(entries.map((e) => e.relPath), path.basename(opts.cwd || '.'));
+  const treeAscii = [rootLabel, ...renderTreeAscii(treeRoot)].join("\n");
   lines.push("<TREE>");
   lines.push(treeAscii);
   lines.push("</TREE>", "");
