@@ -33,7 +33,7 @@ Key options:
 
 - `--include <globs...>` / `--exclude <globs...>`
 - `--no-gitignore` (respect .gitignore by default)
-- `--aicpignore` (on by default; merges project .cpaiignore (or legacy .aicpignore) and global ~/.cpai/.cpaiignore)
+- `--no-cpaiignore` to disable reading .cpaiignore
 - `--hidden` include dotfiles
 - `--max-bytes-per-file <n>` (skip large files)
 - `--model <name>`; `--encoding <tiktoken>`

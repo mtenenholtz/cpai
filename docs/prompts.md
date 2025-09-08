@@ -5,7 +5,7 @@ CPAI composes a final prompt from:
 1) Selected saved prompts (multi‑select)
 2) Ad‑hoc prompt text (inline or full‑screen editor)
 
-The composed prompt is added above and below the rendered files when you run `cpai copy` or use the TUI Copy action.
+Ad‑hoc instructions are added at the top and duplicated at the bottom when you run `cpai copy` or use the TUI Copy action. Saved prompts are added at the top only.
 
 ## Saved prompts
 
@@ -27,7 +27,7 @@ You can have CPAI automatically select saved prompts by name via config:
 
 Project-level config supersedes global for the same field.
 
-Example (`.aicprc.json`):
+Example (`.cpairc.json`):
 
 ```json
 {
@@ -38,7 +38,7 @@ Example (`.aicprc.json`):
 Behavior:
 
 - TUI: those prompts are pre-selected in the Saved Prompts picker on launch.
-- CLI `copy`: those prompts are included automatically in the composed prompt (as `<PROMPT name="...">…</PROMPT>` blocks), in addition to any ad‑hoc `-i/--instructions` or `--instructions-file` text.
+- CLI `copy`: those prompts are included automatically at the top of the composed prompt (as `<PROMPT name="...">…</PROMPT>` blocks), in addition to any ad‑hoc `-i/--instructions` or `--instructions-file` text.
 
 ## Using saved prompts in TUI
 
@@ -46,7 +46,7 @@ Behavior:
   - Space: toggle selection
   - Enter: apply
   - Esc: cancel
-- Selected prompts appear first in the composed prompt (each under a `### <name>` section).
+- Selected prompts appear first in the composed prompt as `<PROMPT name="...">…</PROMPT>` blocks.
 
 ## Ad‑hoc instructions
 
@@ -58,4 +58,8 @@ Project or global config can also set default instructions via `prompt` or `prom
 
 ## CLI composition
 
-`aicp copy` accepts `-i, --instructions` / `--instructions-file` and will combine those with any prompts selected by the TUI in the session.
+`cpai copy` accepts `-i, --instructions` / `--instructions-file` and will combine those with any prompts selected by the TUI in the session.
+
+**Composition details**
+- Ad‑hoc instructions are wrapped in `<INSTRUCTIONS>…</INSTRUCTIONS>` at the top, and that block is duplicated again at the bottom.
+- Saved prompts are added only at the top as `<PROMPT name="…">…</PROMPT>` blocks.

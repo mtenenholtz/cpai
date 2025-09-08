@@ -28,7 +28,6 @@ Navigation & panes:
   - In Files (Tree mode): collapse / expand directories
   - Between panes: `l` moves Files → Rankings, `h` moves Rankings → Files
   - In Rankings: `h` selects Files column; `l` selects Folders column
-- `T`: toggle Tree / Flat view
 - `d`: toggle Details / Rankings in the right pane
 
 Selection:
@@ -57,7 +56,7 @@ Actions:
 
 ## Saved prompts
 
-- Sources: project (`./.cpai/prompts` or `./prompts`) and global (`~/.cpai/prompts`) — legacy `.aicp/prompts` is still supported
+- Sources: project (`./.cpai/prompts` or `./prompts`) and global (`~/.cpai/prompts`)
 - In pickers, global prompts are labeled `(global)`
 - Selected prompts are prepended and appended as sections when composing the final prompt
 

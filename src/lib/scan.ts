@@ -36,14 +36,14 @@ export async function scan(options: ScanOptions): Promise<ScanResult> {
     include,
     exclude,
     useGitignore,
-    useAicpIgnore,
+    useCpaiIgnore,
     hidden,
     maxBytesPerFile,
     model,
     encoding
   } = options;
 
-  // .aicpignore is handled below by re-running globby with extra ignores
+  // .cpaiignore is handled below by re-running globby with extra ignores
 
   const patterns = include.length ? include : ["**/*"];
   const paths = await globby(patterns, {
@@ -53,17 +53,14 @@ export async function scan(options: ScanOptions): Promise<ScanResult> {
     dot: hidden,
     onlyFiles: true,
     followSymbolicLinks: false,
-    // globby will auto-read .gitignore; to read .aicpignore, pass as patterns with '!'?
-    // We'll read .aicpignore ourselves and append to exclude if present:
+    // globby will auto-read .gitignore; we'll read .cpaiignore ourselves and append to exclude if present:
   });
 
-  // If .cpaiignore (preferred) or .aicpignore exists, merge its lines into exclude (project + global)
-  if (useAicpIgnore) {
+  // If .cpaiignore exists, merge its lines into exclude (project + global)
+  if (useCpaiIgnore) {
     const extra: string[] = [];
     try {
-      let raw: string | null = null;
-      try { raw = await fs.readFile(path.join(cwd, ".cpaiignore"), "utf8"); } catch {}
-      if (!raw) { try { raw = await fs.readFile(path.join(cwd, ".aicpignore"), "utf8"); } catch {} }
+      const raw = await fs.readFile(path.join(cwd, ".cpaiignore"), "utf8");
       if (raw) {
         extra.push(...raw.split(/\r?\n/).map((l) => l.trim()).filter((l) => l && !l.startsWith("#")));
       }
@@ -71,12 +68,10 @@ export async function scan(options: ScanOptions): Promise<ScanResult> {
     try {
       const home = os.homedir?.() || process.env.HOME || process.env.USERPROFILE || "";
       if (home) {
-        let rawG: string | null = null;
-        try { rawG = await fs.readFile(path.join(home, ".cpai", ".cpaiignore"), "utf8"); } catch {}
-        if (!rawG) { try { rawG = await fs.readFile(path.join(home, ".aicp", ".aicpignore"), "utf8"); } catch {} }
-        if (rawG) {
+        try {
+          const rawG = await fs.readFile(path.join(home, ".cpai", ".cpaiignore"), "utf8");
           extra.push(...rawG.split(/\r?\n/).map((l) => l.trim()).filter((l) => l && !l.startsWith("#")));
-        }
+        } catch {}
       }
     } catch {}
     if (extra.length) {
@@ -173,7 +168,7 @@ export async function scanConcurrent(
     include,
     exclude,
     useGitignore,
-    useAicpIgnore,
+    useCpaiIgnore,
     hidden,
     maxBytesPerFile,
     model,
@@ -194,17 +189,19 @@ export async function scanConcurrent(
     followSymbolicLinks: false
   });
 
-  if (useAicpIgnore) {
+  if (useCpaiIgnore) {
     const extraEx: string[] = [];
     try {
-      const raw = await fs.readFile(path.join(cwd, ".aicpignore"), "utf8");
-      extraEx.push(...raw.split(/\r?\n/).map((l) => l.trim()).filter((l) => l && !l.startsWith("#")));
+      const raw = await fs.readFile(path.join(cwd, ".cpaiignore"), "utf8");
+      if (raw) extraEx.push(...raw.split(/\r?\n/).map((l) => l.trim()).filter((l) => l && !l.startsWith("#")));
     } catch {}
     try {
       const home = os.homedir?.() || process.env.HOME || process.env.USERPROFILE || "";
       if (home) {
-        const rawG = await fs.readFile(path.join(home, ".aicp", ".aicpignore"), "utf8");
-        extraEx.push(...rawG.split(/\r?\n/).map((l) => l.trim()).filter((l) => l && !l.startsWith("#")));
+        try {
+          const rawG = await fs.readFile(path.join(home, ".cpai", ".cpaiignore"), "utf8");
+          if (rawG) extraEx.push(...rawG.split(/\r?\n/).map((l) => l.trim()).filter((l) => l && !l.startsWith("#")));
+        } catch {}
       }
     } catch {}
     if (extraEx.length) {

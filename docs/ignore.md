@@ -10,9 +10,9 @@ CPAI combines include/exclude globs, .gitignore, and .cpaiignore to decide what 
 - .gitignore (respected by default)
   - Disable with `--no-gitignore`
 - .cpaiignore
-  - Project: `./.cpaiignore` (legacy: `./.aicpignore`)
-  - Global: `~/.cpai/.cpaiignore` (legacy: `~/.aicp/.aicpignore`)
-  - Enabled by default (`useAicpIgnore: true`); disable with `--no-aicpignore` on the CLI.
+  - Project: `./.cpaiignore`
+  - Global: `~/.cpai/.cpaiignore`
+  - Enabled by default (`useCpaiIgnore: true`); disable with `--no-cpaiignore` on the CLI.
   - Lines are globs; `#` starts a comment.
 
 ### Default excludes
@@ -38,7 +38,7 @@ CLI with globs:
 
 ```bash
 cpai scan . --include "src/**" --exclude "**/*.test.ts"
-aicp copy . --include "src/**,README.md" --exclude "**/*.snap"
+cpai copy . --include "src/**,README.md" --exclude "**/*.snap"
 ```
 
 ## Tips

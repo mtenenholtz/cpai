@@ -53,9 +53,10 @@ cpai tui .
 pnpm dlx tsx src/cli.ts tui .
 ```
 
-- Use j/k to move, space to toggle, T to toggle Tree/Flat, d to toggle Details/Rankings
-- p opens the full‑screen Instructions Editor
-- Ctrl+P opens the Saved Prompts picker
+- Use j/k or arrow keys to move, `space` to toggle include/exclude
+- `h`/`l` collapse/expand directories in Files, and move focus between Files/Rankings
+- `d` toggles the right pane (Details ↔ Rankings)
+- `p` opens the full‑screen Instructions Editor; `Ctrl+P` opens the Saved Prompts picker
 
 5. Configure defaults (project or global):
 

@@ -8,7 +8,7 @@ export type State = {
   include: string[];
   exclude: string[];
   useGitignore: boolean;
-  useAicpIgnore: boolean;
+  useCpaiIgnore: boolean;
   hidden: boolean;
   maxBytesPerFile: number;
   model?: string;
@@ -40,7 +40,7 @@ export type State = {
   selectedPrompts: Set<string>;
   // layout emphasis: when true, give right pane more width
   emphasizeRight: boolean;
-  // auto-deselections from .aicpignore (still visible, just not selected)
+  // auto-deselections from .cpaiignore (still visible, just not selected)
   autoDeselected: Set<string>;
 };
 
@@ -50,7 +50,7 @@ export function makeDefaultState(cwd: string, fileCfg: any): State {
     include: fileCfg.include || DEFAULT_CONFIG.include,
     exclude: fileCfg.exclude || DEFAULT_CONFIG.exclude,
     useGitignore: fileCfg.useGitignore ?? DEFAULT_CONFIG.useGitignore,
-    useAicpIgnore: fileCfg.useAicpIgnore ?? DEFAULT_CONFIG.useAicpIgnore,
+    useCpaiIgnore: fileCfg.useCpaiIgnore ?? DEFAULT_CONFIG.useCpaiIgnore,
     hidden: fileCfg.hidden ?? DEFAULT_CONFIG.hidden,
     maxBytesPerFile: fileCfg.maxBytesPerFile ?? DEFAULT_CONFIG.maxBytesPerFile,
     model: fileCfg.model ?? DEFAULT_CONFIG.model,

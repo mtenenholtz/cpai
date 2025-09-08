@@ -2,16 +2,16 @@
 
 CPAI supports both project-level and global configuration. All formats are JSON.
 
-- Project: `./.cpairc.json` or `package.json#cpai` (legacy: `.aicprc.json` or `package.json#aicp`)
-- Global: `~/.cpai/config.json` (created via `cpai init --global`) (legacy: `~/.aicp/config.json`)
+- Project: `./.cpairc.json` or `package.json#cpai`
+- Global: `~/.cpai/config.json` (created via `cpai init --global`)
 
 Precedence: CLI flags > project config > global config > defaults.
 
 ## Paths
 
 - Global config: `~/.cpai/config.json`
-- Global ignores: `~/.cpai/.cpaiignore` (legacy: `~/.aicp/.aicpignore`)
-- Global prompts: `~/.cpai/prompts/` (legacy: `~/.aicp/prompts/`)
+- Global ignores: `~/.cpai/.cpaiignore`
+- Global prompts: `~/.cpai/prompts/`
 
 ## Keys
 
@@ -20,7 +20,7 @@ Precedence: CLI flags > project config > global config > defaults.
   "include": ["**/*"],               // globs
   "exclude": ["**/node_modules/**"], // globs
   "useGitignore": true,
-  "useAicpIgnore": true,              // honors project + global ~/.cpai/.cpaiignore
+  "useCpaiIgnore": true,              // honors project + global ~/.cpai/.cpaiignore
   "hidden": false,
   "maxBytesPerFile": 512000,
   "model": "gpt-4o-mini",

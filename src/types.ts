@@ -5,7 +5,7 @@ export interface BaseOptions {
   include: string[];
   exclude: string[];
   useGitignore: boolean;
-  useAicpIgnore: boolean;
+  useCpaiIgnore: boolean;
   hidden: boolean;
   maxBytesPerFile: number;
   model?: string;

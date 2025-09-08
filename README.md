@@ -58,7 +58,7 @@ Create `.cpairc.json` (or put a `cpai` field in `package.json`):
   "include": ["**/*"],
   "exclude": ["**/{node_modules,dist,build,.git}/**", "**/*.{png,jpg,svg,zip,pdf}"],
   "useGitignore": true,
-  "useAicpIgnore": true,
+  "useCpaiIgnore": true,
   "hidden": false,
   "maxBytesPerFile": 512000,
   "model": "gpt-4o-mini",
@@ -130,46 +130,104 @@ This will produce something like:
   - **markdown**: `--format markdown` adds headings per file with code fences.
   - **plain**: `--format plain` uses minimal separators.
   - **json**: `--format json` prints file metadata.
-- **Config**: `.aicprc.json` and/or `package.json#aicp` provide team-wide defaults. CLI flags override config. For prompts, `selectedPrompts` auto-includes saved prompts by name (project-level config supersedes global).
+- **Config**: `.cpairc.json` or `package.json#cpai` provide team-wide defaults. CLI flags override config. For prompts, `selectedPrompts` auto-includes saved prompts by name (project-level config supersedes global).
 
 ---
 
-If you want enhancements (e.g., per-language heuristics, automatic “most informative files first,” or a TUI for interactive toggling), say the word and I’ll extend this.
+If you want enhancements (e.g., per-language heuristics or automatic “most informative files first”), say the word and I’ll extend this.
 
 ---
 
 ## TUI (interactive)
 
-Open the interactive interface:
+### Quickstart (≈1 minute)
+
+1) Launch in your repo
 
 ```bash
-aicp tui .
+cpai tui .
 ```
 
-Layout
-- Left: files with ✔/✖ status, tokens, bytes
-- Right: details for the focused file
-- Bottom: status + condensed help (press ? for full cheatsheet)
+2) Pick files
+- Move with `j`/`k` or arrow keys.
+- Press `space` to include/exclude the highlighted item.
+- On a directory, `space` toggles everything inside.
+- In the Files pane, `h` collapses and `l` expands directories.
+- Press `d` to switch the right pane between Rankings and Details.
+- In Rankings, `space` on a row toggles that file or the entire folder.
 
-Keybindings
-- Navigation: Up/Down, j/k, PgUp/PgDn
-- Selection: Space (toggle), A (all), N (none), V (invert)
-- Rules: i include globs, x exclude globs, g .gitignore, a .aicpignore, . hidden
-- Packing: b budget, s sort, m format, e XML, t Tags, p edit instructions
-- Actions: c copy (clipboard), o write file
-- Help/App: ?/F1 help, q quit
+3) Add instructions / prompts (optional)
+- `p` opens the full‑screen Instructions Editor (Esc saves; Ctrl+Q cancels).
+- `Ctrl+P` opens the Saved Prompts picker (space to toggle, Enter to apply).
+
+4) Copy
+- Press `c` to copy the composed bundle to your clipboard (OSC52 fallback).
+- Paste into your LLM of choice.
+
+### Cheat sheet
+
+```
+j/k or Arrow keys   move selection
+h/l (Files)         collapse / expand directory
+h/l (panes)         move focus Files ↔ Rankings
+space               include/exclude file or directory
+d                   toggle right pane: Rankings ↔ Details
+p                   open Instructions Editor (Esc save, Ctrl+Q cancel)
+Ctrl+P              Saved Prompts picker (space toggle, Enter apply, Esc cancel)
+e (Rankings)        show full name preview (e/E/Esc to close)
+Ctrl+R              rescan
+c                   copy bundle to clipboard
+q or Ctrl+C         quit
+```
+
+### What gets copied?
+
+By default, the TUI copies a tags‑wrapped bundle that includes a tree preview and one block per file:
+
+```text
+<TREE>
+repo/
+├─ src/
+│  └─ index.ts
+└─ README.md
+</TREE>
+
+<FILE_1 path="src/index.ts">
+// file contents…
+</FILE_1>
+```
+
+- Any ad‑hoc text you entered in the editor is added at the top as an `<INSTRUCTIONS>` block and duplicated at the bottom.
+- Any saved prompts you selected are added at the top as `<PROMPT name="…">…</PROMPT>` blocks.
+- Prefer different output styles (markdown/plain/XML)? Use the CLI: `cpai copy` (see below).
+
+### Options you’ll actually use
+
+- `--mouse` — enable mouse for this run (or set `"mouse": true` in `.cpairc.json`)
+- `-i, --instructions "..."` / `--instructions-file <path>` — prefill the editor
+- `--prompts-dir <dir>` — add a directory of saved prompts
+- `--pick-prompts` — open the prompts picker on launch
+
+Mouse
+- Off by default; run with `cpai tui . --mouse`. Click to focus/select, wheel to scroll.
+
+Auto‑refresh
+- The TUI rescans automatically ~every 2s. Tune with `CPAI_TUI_POLL_MS`.
 
 Clipboard notes (tmux/screen/SSH)
-- Uses system clipboard via clipboardy; if that fails, falls back to OSC52 in compatible terminals.
-- Under tmux, enable OSC52 passthrough: set -g set-clipboard on
+- Uses system clipboard via `clipboardy`, falling back to OSC52.
+- Under tmux, enable OSC52 passthrough:
+  ```
+  set -g set-clipboard on
+  ```
 
 Windows/WSL
 - Prefer UTF‑8 terminals (Windows Terminal, PowerShell 7+). If characters look odd, switch the code page to UTF‑8.
 
-Troubleshooting
-- No clipboard? Use o to write to a file, or ensure OSC52 passthrough is enabled (tmux) or a system clipboard tool is installed.
+ Troubleshooting
+ - No clipboard? Use `cpai copy . -o out.txt` or redirect: `cpai copy . > out.txt`. Ensure OSC52 passthrough is enabled (tmux) or a system clipboard tool is installed.
 - Small terminal? Increase size; the TUI needs roughly 68×12 or larger.
-- Auto‑refresh: The TUI detects added/removed files and rescans automatically (polls every ~2s). Adjust with `AICP_TUI_POLL_MS`.
+- Auto‑refresh: The TUI detects added/removed files and rescans automatically (polls every ~2s). Adjust with `CPAI_TUI_POLL_MS`.
 
 ### TUI extras
 
@@ -192,33 +250,14 @@ cpai tui . --prompts-dir ./prompts --pick-prompts
 ```
 
 In the UI:
-- `p` edits ad‑hoc instructions (included at top & bottom).
-- `Ctrl+P` opens a Prompts Picker (space to toggle, `v` to preview, Enter to apply).
-- The final preface includes `<INSTRUCTIONS>` at the top, and any selected saved prompts are added beneath it as separate `<PROMPT name="...">` blocks.
+- `p` edits ad‑hoc instructions (included at the top and duplicated at the bottom of the final output).
+- `Ctrl+P` opens a Prompts Picker (space to toggle, Enter to apply).
+ - The final preface includes an `<INSTRUCTIONS>` block at the top. Any selected saved prompts are added beneath it as separate `<PROMPT name="...">` blocks. Only the `<INSTRUCTIONS>` block is duplicated at the end of the output.
 
-Layout & Tabs
-- Click the tab bar or press keys to switch: `Tree`, `Flat`, `Rank`, `Details`, `Prompts`.
-- `L` toggles Auto/Horizontal/Vertical layouts (Auto picks vertical for narrow terminals).
-- Status bar shows token count vs budget when set.
+Status bar shows an approximate token count for the current selection.
 
 Tree & Rankings
-- Files/dirs show aligned token counts.
-- `F2` cycles the tree metric column (tokens/bytes/lines).
-- `h` mutes the selected file/dir from Rankings only (does not affect packing).
-- `H` clears all mutes.
-
-Copy/Write still honor selection
-- Muting only affects the Top lists. Use Space, A/N/V (include/exclude) to control what gets packed.
-
-CLI cheatsheet
-
-```text
-? Help  / Filter  Space Toggle  A All  N None  V Invert
-i include  x exclude  g .gitignore  a .cpaiignore  . Hidden
-b Budget  s Sort  m Format  e XML  t Tags
-p Prompt  P Prompts  h/H mute rankings  F2 metric
-L Layout  o Write  c Copy  r Rescan  q Quit
-```
+- Files/dirs show aligned token counts. Use `space` to toggle inclusion on a file or on an entire directory (either from Files or from the Rankings “Folders” column).
 
 ---
 
@@ -232,7 +271,7 @@ L Layout  o Write  c Copy  r Rescan  q Quit
     "docs-only": {
       "include": ["README.md", "docs/**/*"],
       "exclude": ["**/*.png"],
-      "prompt": "Summarize the docs and propose improvements.",
+      "instructions": "Summarize the docs and propose improvements.",
       "selectedPrompts": ["style-guide"]
     }
   }
@@ -243,4 +282,4 @@ L Layout  o Write  c Copy  r Rescan  q Quit
 - Add/override instructions at runtime:
 - Inline: `-i "Refactor for clarity; note assumptions."`
 - From file: `--instructions-file .prompt.txt`
-- The instructions are inserted at the very top and bottom wrapped in `<INSTRUCTIONS>...</INSTRUCTIONS>` tags and count toward the token budget when packing. Any selected saved prompts are appended beneath the initial `<INSTRUCTIONS>` block as `<PROMPT name="...">...</PROMPT>` blocks.
+- The instructions are inserted at the very top (and duplicated at the bottom) wrapped in `<INSTRUCTIONS>...</INSTRUCTIONS>` tags and count toward the token budget when packing. Any selected saved prompts are appended beneath the initial `<INSTRUCTIONS>` block as `<PROMPT name="...">...</PROMPT>` blocks (top only).

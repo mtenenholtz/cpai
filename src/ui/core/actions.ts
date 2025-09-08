@@ -19,8 +19,8 @@ export async function rescan(
     include: state.include,
     exclude: state.exclude,
     useGitignore: state.useGitignore,
-    // Always list everything; we'll apply .cpaiignore/.aicpignore as auto-deselect, not hide
-    useAicpIgnore: false,
+    // Always list everything; we'll apply .cpaiignore as auto-deselect, not hide
+    useCpaiIgnore: false,
     hidden: state.hidden,
     maxBytesPerFile: state.maxBytesPerFile,
     model: state.model,
@@ -31,13 +31,11 @@ export async function rescan(
   state.files = list;
   if (state.selectedIdx >= list.length) state.selectedIdx = Math.max(0, list.length - 1);
 
-  // Compute autoDeselected from .cpaiignore/.aicpignore (visible but off by default)
+  // Compute autoDeselected from .cpaiignore (visible but off by default)
   const auto = new Set<string>();
-  if (state.useAicpIgnore) {
+  if (state.useCpaiIgnore) {
     try {
-      let raw: string | null = null;
-      try { raw = await fs.readFile(path.join(state.cwd, '.cpaiignore'), 'utf8'); } catch {}
-      if (!raw) { try { raw = await fs.readFile(path.join(state.cwd, '.aicpignore'), 'utf8'); } catch {} }
+      const raw = await fs.readFile(path.join(state.cwd, '.cpaiignore'), 'utf8');
       const extra = (raw || '')
         .split(/\r?\n/)
         .map((l) => l.trim())
@@ -60,10 +58,6 @@ export async function rescan(
             if (!home) return [] as string[];
             try {
               const rg = await fs.readFile(path.join(home, '.cpai', '.cpaiignore'), 'utf8');
-              return rg.split(/\r?\n/).map(l => l.trim()).filter(l => l && !l.startsWith('#'));
-            } catch {}
-            try {
-              const rg = await fs.readFile(path.join(home, '.aicp', '.aicpignore'), 'utf8');
               return rg.split(/\r?\n/).map(l => l.trim()).filter(l => l && !l.startsWith('#'));
             } catch {}
             return [] as string[];
@@ -108,7 +102,7 @@ export async function renderPackedText(
     include: state.include,
     exclude: state.exclude,
     useGitignore: state.useGitignore,
-    useAicpIgnore: state.useAicpIgnore,
+    useCpaiIgnore: state.useCpaiIgnore,
     hidden: state.hidden,
     maxBytesPerFile: state.maxBytesPerFile,
     model: state.model,
@@ -191,16 +185,13 @@ export async function estimateTokens(entries: FileEntry[], state: State): Promis
 
 export async function loadSavedPrompts(cwd: string, dirHint?: string): Promise<SavedPrompt[]> {
   const home = os.homedir?.() || process.env.HOME || process.env.USERPROFILE || '';
-  const globalDirNew = home ? path.join(home, '.cpai', 'prompts') : null;
-  const globalDirOld = home ? path.join(home, '.aicp', 'prompts') : null;
+  const globalDir = home ? path.join(home, '.cpai', 'prompts') : null;
   // Prefer project prompts first so they win on name conflicts
   const candidates = [
     dirHint ? path.resolve(cwd, dirHint) : null,
     path.join(cwd, '.cpai/prompts'),
-    path.join(cwd, '.aicp/prompts'),
     path.join(cwd, 'prompts'),
-    globalDirNew,
-    globalDirOld
+    globalDir
   ] as (string | null)[];
   const out: SavedPrompt[] = [];
   for (const c of candidates) {
@@ -213,7 +204,7 @@ export async function loadSavedPrompts(cwd: string, dirHint?: string): Promise<S
         if (!['.md', '.txt', '.prompt'].includes(ext)) continue;
         const p = path.join(c, d.name);
         const text = await fs.readFile(p, 'utf8');
-        const origin: 'project' | 'global' = ((globalDirNew && p.startsWith(globalDirNew)) || (globalDirOld && p.startsWith(globalDirOld))) ? 'global' : 'project';
+        const origin: 'project' | 'global' = (globalDir && p.startsWith(globalDir)) ? 'global' : 'project';
         out.push({ name: path.basename(d.name, ext), path: p, text, origin });
       }
     } catch {}

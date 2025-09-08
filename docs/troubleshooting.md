@@ -60,3 +60,8 @@ Then retry `cpai tui .`. (The Ink adapter dynamically imports `ink` and `react`.
 
 - Requires Node ≥ 18.18.
 - Verify with `node -v`. Reinstall if needed.
+
+## Auto‑refresh interval
+
+- The TUI polls for file list changes ~every 2 seconds. Adjust with:
+  - `CPAI_TUI_POLL_MS=<millis>`

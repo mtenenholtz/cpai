@@ -98,7 +98,7 @@ program
   .option("--include <globs...>", "include globs (comma or space separated)", "")
   .option("--exclude <globs...>", "exclude globs (comma or space separated)", "")
   .option("--no-gitignore", "do not respect .gitignore")
-  .option("--aicpignore", "respect .aicpignore (default on)", true)
+  .option("--no-cpaiignore", "do not respect .cpaiignore")
   .option("--hidden", "include dotfiles", false)
   .option("--max-bytes-per-file <n>", "skip files larger than this", String(DEFAULT_CONFIG.maxBytesPerFile))
   .option("--model <name>", "model name for encoding heuristic", DEFAULT_CONFIG.model)
@@ -115,7 +115,9 @@ program
         include: opts.include || fileCfg.include || DEFAULT_CONFIG.include,
         exclude: opts.exclude || fileCfg.exclude || DEFAULT_CONFIG.exclude,
         useGitignore: opts.gitignore !== false && (fileCfg.useGitignore ?? DEFAULT_CONFIG.useGitignore),
-        useAicpIgnore: opts.aicpignore !== false && (fileCfg.useAicpIgnore ?? DEFAULT_CONFIG.useAicpIgnore),
+        useCpaiIgnore:
+          (opts.cpaiignore !== false) &&
+          ((fileCfg.useCpaiIgnore ?? DEFAULT_CONFIG.useCpaiIgnore)),
         hidden: opts.hidden ?? (fileCfg.hidden ?? DEFAULT_CONFIG.hidden),
         maxBytesPerFile: Number(opts["maxBytesPerFile"] ?? fileCfg.maxBytesPerFile ?? DEFAULT_CONFIG.maxBytesPerFile),
         model: opts.model || fileCfg.model || DEFAULT_CONFIG.model,
@@ -190,7 +192,7 @@ program
   .option("--include <globs...>", "include globs", "")
   .option("--exclude <globs...>", "exclude globs", "")
   .option("--no-gitignore", "do not respect .gitignore")
-  .option("--aicpignore", "respect .aicpignore (default on)", true)
+  .option("--no-cpaiignore", "do not respect .cpaiignore")
   .option("--hidden", "include dotfiles", false)
   .option("--max-bytes-per-file <n>", "skip files larger than this", String(DEFAULT_CONFIG.maxBytesPerFile))
   .option("--model <name>", "model name for encoding heuristic", DEFAULT_CONFIG.model)
@@ -207,12 +209,9 @@ program
   .option("--block-separator <s>", "separator between files (plain text)", "\n\n")
   .option("--xml", "Wrap output in XML with <tree> and <file> tags", false)
   .option("--no-tags", "Do not wrap each file with <FILE_n> separators (default on)")
-  .option("-P, --profile <name>", "use a named profile from .aicprc.json", "")
+  .option("-P, --profile <name>", "use a named profile from .cpairc.json", "")
   .option("-i, --instructions <text>", "additional instruction text added to top and bottom")
   .option("--instructions-file <path>", "read the instructions text from a file")
-  // Back-compat (deprecated)
-  .option("--prompt <text>", "[deprecated] use --instructions instead")
-  .option("--prompt-file <path>", "[deprecated] use --instructions-file instead")
   .action(async (dirArg, opts) => {
     const cwd = path.resolve(process.cwd(), opts.cwd || dirArg || ".");
     const fileCfg = await loadAicpConfig(cwd);
@@ -222,13 +221,13 @@ program
     const profile = profileName && fileCfg.profiles ? fileCfg.profiles[profileName] : undefined;
 
     async function readInstructionsText(): Promise<string | undefined> {
-      // Prefer new flags but accept deprecated ones for back-compat
-      const cliText: string | undefined = opts.instructions || opts.prompt || undefined;
-      const cliFile: string | undefined = opts.instructionsFile || opts.promptFile || undefined;
-      const profText: string | undefined = (((profile as any)?.instructions) as string | undefined) || (profile?.prompt as string | undefined) || undefined;
-      const profFile: string | undefined = (((profile as any)?.instructionsFile) as string | undefined) || (profile?.promptFile as string | undefined) || undefined;
-      const cfgText: string | undefined = (((fileCfg as any)?.instructions) as string | undefined) || (fileCfg.prompt as string | undefined) || undefined;
-      const cfgFile: string | undefined = (((fileCfg as any)?.instructionsFile) as string | undefined) || (fileCfg.promptFile as string | undefined) || undefined;
+      // Read only current flags and config keys (no legacy support)
+      const cliText: string | undefined = opts.instructions || undefined;
+      const cliFile: string | undefined = opts.instructionsFile || undefined;
+      const profText: string | undefined = ((profile as any)?.instructions as string | undefined) || undefined;
+      const profFile: string | undefined = ((profile as any)?.instructionsFile as string | undefined) || undefined;
+      const cfgText: string | undefined = ((fileCfg as any)?.instructions as string | undefined) || undefined;
+      const cfgFile: string | undefined = ((fileCfg as any)?.instructionsFile as string | undefined) || undefined;
 
       const pickFile = cliFile || profFile || cfgFile;
       let instructions: string | undefined = undefined;
@@ -251,13 +250,11 @@ program
       const saved = await (async () => {
         const home = os.homedir?.() || process.env.HOME || process.env.USERPROFILE || '';
         const globalDirNew = home ? path.join(home, '.cpai', 'prompts') : null;
-        const globalDirOld = home ? path.join(home, '.aicp', 'prompts') : null;
         const candidates = [
           path.join(cwd, '.cpai/prompts'),
-          path.join(cwd, '.aicp/prompts'),
           path.join(cwd, 'prompts'),
           globalDirNew,
-          globalDirOld
+          
         ].filter(Boolean) as string[];
         const out: { name: string; text: string }[] = [];
         for (const c of candidates) {
@@ -299,7 +296,9 @@ program
       include: opts.include || profile?.include || fileCfg.include || DEFAULT_CONFIG.include,
       exclude: opts.exclude || profile?.exclude || fileCfg.exclude || DEFAULT_CONFIG.exclude,
       useGitignore: opts.gitignore !== false && ((profile?.useGitignore ?? fileCfg.useGitignore) ?? DEFAULT_CONFIG.useGitignore),
-      useAicpIgnore: opts.aicpignore !== false && ((profile?.useAicpIgnore ?? fileCfg.useAicpIgnore) ?? DEFAULT_CONFIG.useAicpIgnore),
+      useCpaiIgnore:
+        (opts.cpaiignore !== false) &&
+        (((profile as any)?.useCpaiIgnore ?? fileCfg.useCpaiIgnore) ?? DEFAULT_CONFIG.useCpaiIgnore),
       hidden: opts.hidden ?? ((profile?.hidden ?? fileCfg.hidden) ?? DEFAULT_CONFIG.hidden),
       maxBytesPerFile: Number(
         opts["maxBytesPerFile"] ?? (profile?.maxBytesPerFile ?? fileCfg.maxBytesPerFile) ?? DEFAULT_CONFIG.maxBytesPerFile
@@ -400,20 +399,17 @@ program
   .option("-C, --cwd <dir>", "working directory (defaults to dir)", "")
   .option("-i, --instructions <text>", "prefill ad-hoc instructions", "")
   .option("--instructions-file <path>", "prefill instructions from a file")
-  // Back-compat (deprecated)
-  .option("--prompt <text>", "[deprecated] use --instructions instead", "")
-  .option("--prompt-file <path>", "[deprecated] use --instructions-file instead")
   .option(
     "--prompts-dir <dir>",
-    "directory of saved prompts to pick (default: ./prompts or ./.cpai/prompts; legacy ./.aicp/prompts)"
+    "directory of saved prompts to pick (default: ./prompts or ./.cpai/prompts)"
   )
   .option("--pick-prompts", "open saved prompts picker on launch", false)
   .option("--mouse", "enable mouse hover/selection in the TUI (overrides config)")
   .action(async (dirArg, opts) => {
     const cwd = path.resolve(process.cwd(), opts.cwd || dirArg || ".");
     let promptText: string | undefined = undefined;
-    const fileOpt: string | undefined = opts.instructionsFile || opts.promptFile || undefined;
-    const textOpt: string | undefined = opts.instructions || opts.prompt || undefined;
+    const fileOpt: string | undefined = opts.instructionsFile || undefined;
+    const textOpt: string | undefined = opts.instructions || undefined;
     if (fileOpt) {
       try {
         const p = path.isAbsolute(fileOpt) ? fileOpt : path.join(cwd, fileOpt);

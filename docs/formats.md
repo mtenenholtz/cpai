@@ -16,7 +16,7 @@ CPAI can render Markdown, Plain, JSON, and an XML bundle.
 ## Plain
 - Minimal separators; good for grepping.
 ```bash
-aicp copy . -f plain --block-separator "\n---\n"
+cpai copy . -f plain --block-separator "\n---\n"
 ```
 
 ## JSON
@@ -24,7 +24,7 @@ aicp copy . -f plain --block-separator "\n---\n"
 - Emits a list of file metadata (no bodies).
 
 ```bash
-aicp copy . -f json > files.json
+cpai copy . -f json > files.json
 ```
 
 ## Per‑file tags (default wrapper)
@@ -62,4 +62,4 @@ repo/
 ### Headers and prompts
 
 - `--header "<text>"` prepends a header block.
-- `-i, --instructions` / `--instructions-file` add a `<PROMPT>` block above and below the body; `--strict` accounts for this in token budgets.
+- `-i, --instructions` / `--instructions-file` add an `<INSTRUCTIONS>` block at the top and a duplicate of that `<INSTRUCTIONS>` block at the bottom. Selected saved prompts are added at the top as `<PROMPT name="...">…</PROMPT>` blocks. `--strict` accounts for these in token budgets.
