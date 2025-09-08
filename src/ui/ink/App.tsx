@@ -195,6 +195,24 @@ export function App(props: {cwd: string; promptText?: string; promptsDir?: strin
       }
       return;
     }
+    // Vim-style lateral navigation:
+    // - Between panes: h = Files, l = Rankings
+    // - Within Rankings: h selects Files column, l selects Folders column
+    if (input === 'h') {
+      if (focusPane === 'rankings') {
+        if (rankSide === 'dirs') setRankSide('files');
+        else setFocusPane('files');
+      }
+      return;
+    }
+    if (input === 'l') {
+      if (focusPane === 'files') {
+        setFocusPane('rankings');
+      } else if (focusPane === 'rankings') {
+        setRankSide('dirs');
+      }
+      return;
+    }
     if (input === 'j' || key.downArrow) {
       if (focusPane === 'files') {
         state.selectedIdx += 1;
