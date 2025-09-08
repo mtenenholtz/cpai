@@ -762,8 +762,9 @@ export function App(props: {
 
   if (!state)
     return (
-      <Box>
-        <Text>Scanning… {progress ? `${progress.done}/${progress.total}` : ''}</Text>
+      <Box flexDirection="column" paddingX={1}>
+        <Text>Use web-only models (e.g., GPT-5 Pro) with your local codebase</Text>
+        <Text dimColor>Scanning… {progress ? `${progress.done}/${progress.total}` : ''}</Text>
       </Box>
     );
 
