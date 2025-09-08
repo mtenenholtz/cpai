@@ -155,7 +155,7 @@ export function App(props: {cwd: string; promptText?: string; promptsDir?: strin
   // Auto-reload: poll for added/removed files and rescan when list changes
   useEffect(() => {
     let cancelled = false;
-    const pollMs = Number(process.env.CPAI_TUI_POLL_MS || process.env.AICP_TUI_POLL_MS || '') || 2000;
+    const pollMs = Number(process.env.CPAI_TUI_POLL_MS || '') || 2000;
 
     async function check() {
       if (cancelled) return;
@@ -373,8 +373,8 @@ export function App(props: {cwd: string; promptText?: string; promptsDir?: strin
         } else {
           const entry = topDirs[rankIdx];
           if (entry) {
-            const dir = entry[0]; // posix dirname ('' for root)
-            const prefix = dir ? dir + '/' : '';
+            const dir = entry[0]; // posix dirname ('.' for root)
+            const prefix = dir && dir !== '.' ? dir + '/' : '';
             // Compute inclusion stats for this directory similar to tree toggling
             let total = 0;
             let included = 0;
@@ -637,8 +637,12 @@ export function App(props: {cwd: string; promptText?: string; promptsDir?: strin
   const filesBody = Math.max(1, innerH - 2);     // minus title and headers
   const ranksBody = Math.max(1, innerH - 2);     // minus title and headers
   const safeCols = Math.max(10, (cols || 80) - 2); // account for root paddingX={1}
-  const fullHelp = `j/k scroll • space toggle • d details/rank • w swap • p edit instructions • Ctrl-R rescan • q quit${statusMsg ? ' • ' + statusMsg : ''}`;
-  const shortHelp = `j/k • space • d • w • p edit instructions • Ctrl-R • q${statusMsg ? ' • ' + statusMsg : ''}`;
+  const baseFullHelp = `j/k scroll • space toggle • d details/rank • w swap • p edit instructions • Ctrl-R rescan • q quit`;
+  const baseShortHelp = `j/k • space • d • w • p edit instructions • Ctrl-R • q`;
+  const eHintFull = focusPane === 'rankings' ? ' • e full-name' : '';
+  const eHintShort = focusPane === 'rankings' ? ' • e' : '';
+  const fullHelp = `${baseFullHelp}${eHintFull}${statusMsg ? ' • ' + statusMsg : ''}`;
+  const shortHelp = `${baseShortHelp}${eHintShort}${statusMsg ? ' • ' + statusMsg : ''}`;
   const help = safeCols >= 108 ? fullHelp : shortHelp;
   const promptsSuffix = !showPromptsPicker
     ? (() => {
