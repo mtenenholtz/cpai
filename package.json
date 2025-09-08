@@ -1,17 +1,38 @@
 {
   "name": "cpai",
-  "version": "0.1.0",
+  "version": "0.0.1",
   "type": "module",
   "description": "Use web-only models (e.g., GPT-5 Pro) with your local codebase: scan, pack to token limits, and copy a paste-ready bundle.",
   "bin": {
     "cpai": "./dist/cli.js"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mtenenholtz/cpai.git"
+  },
+  "homepage": "https://github.com/mtenenholtz/cpai#readme",
+  "bugs": {
+    "url": "https://github.com/mtenenholtz/cpai/issues"
+  },
+  "preferGlobal": true,
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "docs"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "packageManager": "pnpm@9",
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "dev": "tsx src/cli.ts --help",
     "start": "node dist/cli.js",
     "tui": "node dist/cli.js tui",
     "prepare": "pnpm run build",
+    "prepack": "pnpm run build",
+    "prepublishOnly": "pnpm run check && pnpm run build",
     "test": "vitest",
     "coverage": "vitest run --coverage",
     "lint": "eslint . --ext .ts,.tsx",
@@ -27,10 +48,13 @@
   "license": "MIT",
   "keywords": [
     "cli",
+    "tui",
+    "ink",
     "tokens",
-    "llm",
+    "tiktoken",
     "copy",
-    "tiktoken"
+    "llm",
+    "prompt"
   ],
   "dependencies": {
     "@dqbd/tiktoken": "^1.0.22",

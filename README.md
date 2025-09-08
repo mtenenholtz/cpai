@@ -1,6 +1,16 @@
 # cpai
 
+> Alpha Notice: APIs and flags may change until 0.1.0.
+
 **cpai** makes it easy to use web‑only models like **GPT‑5 Pro** with your local codebase. It scans your repo, packs selected files to fit token limits, and copies a clean, paste‑ready bundle for the model’s web UI.
+
+## Install
+
+```bash
+pnpm add -g cpai
+# or run once without installing
+pnpm dlx cpai --help
+```
 
 ## Install (local dev)
 
