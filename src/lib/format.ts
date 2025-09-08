@@ -187,10 +187,8 @@ export async function formatOutput(entries: FileEntry[], opts: CopyOptions): Pro
       } else {
         lines.push(content, "");
       }
-    } else if (opts.format === "plain") {
-      lines.push(`${f.relPath}`, "----", content, opts.blockSeparator);
     } else {
-      // JSON is handled by the caller (we return structured JSON there)
+      // Non-markdown rendering is not supported here; JSON is handled by the caller.
       lines.push(content);
     }
   }

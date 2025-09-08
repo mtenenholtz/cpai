@@ -29,6 +29,7 @@ Navigation & panes:
   - Between panes: `l` moves Files → Rankings, `h` moves Rankings → Files
   - In Rankings: `h` selects Files column; `l` selects Folders column
 - `d`: toggle Details / Rankings in the right pane
+- `w`: swap focus between Files and Rankings (also switches right pane to Rankings if it was showing Details)
 
 Selection:
 

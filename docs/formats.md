@@ -1,6 +1,6 @@
 # Output Formats
 
-CPAI can render Markdown, Plain, JSON, and an XML bundle.
+CPAI can render Markdown, JSON, and an XML bundle.
 
 ## Markdown (default)
 - Per‑file `### path` headings.
@@ -11,12 +11,6 @@ CPAI can render Markdown, Plain, JSON, and an XML bundle.
 ```ts
 // ...
 ```
-```
-
-## Plain
-- Minimal separators; good for grepping.
-```bash
-cpai copy . -f plain --block-separator "\n---\n"
 ```
 
 ## JSON
@@ -37,9 +31,9 @@ cpai copy . -f json > files.json
 </FILE_1>
 ```
 
-## XML bundle (`--xml`)
+## XML bundle
 
-Emits a tree and files section. Contents are wrapped in CDATA and file metadata is captured as attributes.
+Emits a tree and files section. Contents are wrapped in CDATA and file metadata is captured as attributes. This can be enabled via configuration (e.g., in a profile with `"xmlWrap": true`).
 
 ```xml
 <cpai version="0.1.0">

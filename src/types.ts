@@ -1,4 +1,4 @@
-export type OutputFormat = "markdown" | "plain" | "json";
+export type OutputFormat = "markdown" | "json";
 
 export interface BaseOptions {
   cwd: string;
@@ -24,7 +24,6 @@ export interface CopyOptions extends BaseOptions {
   strict: boolean; // enforce maxTokens after rendering (drop trailing files if needed)
   codeFences: boolean;
   header?: string;
-  blockSeparator: string;
   // XML wrapping
   xmlWrap?: boolean;
   // Simple per-file tag wrapping (<FILE_1 path="...">...)</FILE_1>)

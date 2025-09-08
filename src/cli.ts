@@ -187,7 +187,7 @@ program
 
 program
   .command("copy [dir]")
-  .description("Copy (render) files to stdout or a file, optionally packing under a token budget")
+  .description("Compose a bundle and copy to clipboard (default); optionally write to stdout or a file, with token packing")
   .option("-C, --cwd <dir>", "working directory (defaults to dir)", "")
   .option("--include <globs...>", "include globs", "")
   .option("--exclude <globs...>", "exclude globs", "")
@@ -197,17 +197,16 @@ program
   .option("--max-bytes-per-file <n>", "skip files larger than this", String(DEFAULT_CONFIG.maxBytesPerFile))
   .option("--model <name>", "model name for encoding heuristic", DEFAULT_CONFIG.model)
   .option("--encoding <name>", "explicit tiktoken encoding", DEFAULT_CONFIG.encoding)
-  .option("-f, --format <fmt>", "markdown | plain | json", DEFAULT_CONFIG.format)
-  .option("-o, --out <file>", "write to a file instead of stdout")
-  .option("--clip", "copy to clipboard as well", false)
+  .option("-f, --format <fmt>", "markdown | json", DEFAULT_CONFIG.format)
+  .option("-o, --out <file>", "write to a file")
+  .option("--stdout", "write to stdout (in addition to clipboard unless --no-clip)", false)
+  .option("--no-clip", "do not copy to clipboard")
   .option("--by-dir", "print a directory-level summary to stderr", false)
   .option("--max-tokens <n>", "token budget; pack files to fit", "")
   .option("--pack-order <order>", "small-first | large-first | path", "small-first")
   .option("--strict", "enforce the max-tokens after rendering", true)
   .option("--no-code-fences", "omit ``` fences in markdown", false)
   .option("--header <text>", "prepend a header")
-  .option("--block-separator <s>", "separator between files (plain text)", "\n\n")
-  .option("--xml", "Wrap output in XML with <tree> and <file> tags", false)
   .option("--no-tags", "Do not wrap each file with <FILE_n> separators (default on)")
   .option("-P, --profile <name>", "use a named profile from .cpairc.json", "")
   .option("-i, --instructions <text>", "additional instruction text added to top and bottom")
@@ -307,15 +306,16 @@ program
       encoding: opts.encoding || profile?.encoding || fileCfg.encoding || DEFAULT_CONFIG.encoding,
       format: (opts.format || profile?.format || fileCfg.format || DEFAULT_CONFIG.format) as any,
       outFile: opts.out || undefined,
-      toClipboard: !!opts.clip,
+      // Default: copy to clipboard unless explicitly disabled with --no-clip
+      toClipboard: opts.clip !== false,
       byDir: !!opts.byDir,
       maxTokens: opts.maxTokens ? Number(opts.maxTokens) : undefined,
       packOrder: (opts.packOrder || (profile?.packOrder ?? "small-first")) as any,
       strict: opts.strict !== undefined ? !!opts.strict : (profile?.strict ?? true),
       codeFences: opts.codeFences !== false,
       header: opts.header || undefined,
-      blockSeparator: opts.blockSeparator || (profile?.blockSeparator ?? "\n\n"),
-      xmlWrap: !!opts.xml || !!profile?.xmlWrap,
+      // XML wrapping is no longer controllable via CLI flag; profiles may still enable it
+      xmlWrap: !!profile?.xmlWrap,
       tagsWrap: opts.tags !== false && (profile?.tagsWrap ?? true),
       promptText: promptText
     };
@@ -326,41 +326,40 @@ program
     const result = await scan(cfg);
     const eligible = result.files.filter((f) => !f.skipped);
 
-    if (cfg.format === "json") {
-      const json = renderJson(eligible);
-      if (cfg.outFile) await fs.writeFile(cfg.outFile, json, "utf8");
-      else process.stdout.write(json + "\n");
-      if (cfg.toClipboard) await clipboard.write(json);
-      console.error(
-        chalk.gray(
-          `\nfiles=${eligible.length} tokens=${result.totalTokens} lines=${result.totalLines} bytes=${result.totalBytes}`
-        )
-      );
-      return;
-    }
-
-    const { selected, rendered, tokens } = await packFilesToBudget(eligible, cfg);
+    // Render output (JSON bypasses packing/rendering; others use packing/formatting)
     let text: string;
-    if (rendered !== undefined) {
-      // already fully rendered (and prompt-wrapped if configured)
-      text = rendered;
+    let selected = eligible;
+    let tokens: number | undefined = undefined;
+    if (cfg.format === "json") {
+      text = renderJson(eligible);
     } else {
-      const body = cfg.xmlWrap
-        ? await formatXml(selected, cfg)
-        : cfg.tagsWrap
-        ? await formatTags(selected, cfg)
-        : await formatOutput(selected, cfg);
-      text = wrapWithPrompt(body, cfg.promptText);
+      const packed = await packFilesToBudget(eligible, cfg);
+      selected = packed.selected;
+      tokens = packed.tokens;
+      if (packed.rendered !== undefined) {
+        text = packed.rendered;
+      } else {
+        const body = cfg.xmlWrap
+          ? await formatXml(selected, cfg)
+          : cfg.tagsWrap
+          ? await formatTags(selected, cfg)
+          : await formatOutput(selected, cfg);
+        text = wrapWithPrompt(body, cfg.promptText);
+      }
     }
 
+    // Write to file if requested
     if (cfg.outFile) {
       await fs.writeFile(cfg.outFile, text, "utf8");
       console.error(chalk.green(`Wrote ${cfg.outFile}`));
-    } else {
+    }
+    // Write to stdout only if explicitly requested
+    if (opts.stdout) {
       process.stdout.write(text);
       if (!text.endsWith("\n")) process.stdout.write("\n");
     }
 
+    // Clipboard (default unless --no-clip)
     if (cfg.toClipboard) {
       try {
         await clipboard.write(text);

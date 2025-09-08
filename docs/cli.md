@@ -50,24 +50,23 @@ Example:
 
 ## cpai copy [dir]
 
-Render files and write to stdout, a file, and/or the clipboard; optionally pack under `--max-tokens`.
+Render files and copy to the clipboard by default; optionally also write to stdout or a file, and pack under `--max-tokens`.
 
 Key options:
 
 - `--include/--exclude` (as above)
-- `-f, --format markdown|plain|json` (default markdown)
-- `-o, --out <file>` write to a file instead of stdout
-- `--clip` also copy rendered text to clipboard (OSC52 fallback)
+- `-f, --format markdown|json` (default markdown)
+- `-o, --out <file>` write to a file
+- `--stdout` also write to stdout
+- `--no-clip` do not copy to clipboard
 - `--max-tokens <n>` pack to stay under token budget
 - `--pack-order small-first|large-first|path` (default small-first)
 - `--strict` re-render and strictly enforce the token budget
 - `--no-code-fences` (markdown only)
 - `--header <text>` arbitrary prefix
-- `--block-separator <s>` (plain format)
- - `--xml` (XML wrapper) or `--no-tags` (disable the default `<FILE_n>` tags)
+ - `--no-tags` (disable the default `<FILE_n>` tags)
    - By default, copy output is wrapped per file with `<FILE_n path="...">...</FILE_n>`.
-   - Pass `--no-tags` to suppress those tags, or `--xml` to emit a full XML bundle with a `<tree>` section and `<files><file ...><![CDATA[...]]></file></files>`.
-   - See docs/formats.md for examples.
+   - See docs/formats.md for examples (including XML bundles via profile configuration).
 - `-P, --profile <name>` use a named profile from config
 - `-i, --instructions <text>` / `--instructions-file <path>` include ad‑hoc instructions
 - `--by-dir` also print directory breakdown to stderr
@@ -79,17 +78,17 @@ Config interaction:
 Examples:
 
 ```bash
- # Copy everything to clipboard
- cpai copy . --clip
+ # Copy everything to clipboard (default)
+ cpai copy .
 
  # Pack to 120k tokens, small-first ordering
- cpai copy . --max-tokens 120000 --pack-order small-first --clip
+ cpai copy . --max-tokens 120000 --pack-order small-first
 
- # JSON list of files (no body)
- cpai copy . -f json > files.json
+ # JSON list of files (no body) to stdout
+ cpai copy . -f json --stdout > files.json
 
- # XML wrapper
- cpai copy . --xml -o bundle.xml
+ # Write to a file (still copies to clipboard unless --no-clip)
+ cpai copy . -o bundle.txt
 ```
 
 Notes:

@@ -25,7 +25,7 @@ Precedence: CLI flags > project config > global config > defaults.
   "maxBytesPerFile": 512000,
   "model": "gpt-4o-mini",
   "encoding": "o200k_base",
-  "format": "markdown",             // markdown | plain | json (CLI copy)
+  "format": "markdown",             // markdown | json (CLI copy)
   "mouse": false,                    // TUI mouse support (also overridable via --mouse)
 
   // Optional prompt to append/prepend in copy
@@ -49,7 +49,7 @@ Precedence: CLI flags > project config > global config > defaults.
 Profiles let you save named presets for `cpai copy`. All fields merge over base config.
 
 ```bash
- cpai copy . -P release --clip --max-tokens 120000
+ cpai copy . -P release --max-tokens 120000
 ```
 
 ## Global config

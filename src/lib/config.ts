@@ -11,7 +11,7 @@ export type AicpConfig = {
   maxBytesPerFile?: number;
   model?: string;
   encoding?: string;
-  format?: "markdown" | "plain" | "json";
+  format?: "markdown" | "json";
   // UI toggles
   mouse?: boolean;
   // Optional default instructions included at top and bottom
@@ -34,7 +34,7 @@ export type AicpProfile = {
   maxBytesPerFile?: number;
   model?: string;
   encoding?: string;
-  format?: "markdown" | "plain" | "json";
+  format?: "markdown" | "json";
   instructions?: string;
   instructionsFile?: string;
   // Saved prompts (by name) to auto-select/include for this profile
@@ -42,7 +42,6 @@ export type AicpProfile = {
   tagsWrap?: boolean;
   xmlWrap?: boolean;
   codeFences?: boolean;
-  blockSeparator?: string;
   packOrder?: "small-first" | "large-first" | "path";
   strict?: boolean;
   mouse?: boolean;

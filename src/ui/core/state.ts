@@ -17,7 +17,7 @@ export type State = {
   maxTokens?: number;
   packOrder: 'small-first' | 'large-first' | 'path';
   strict: boolean;
-  format: 'markdown' | 'plain' | 'json';
+  format: 'markdown' | 'json';
   xmlWrap: boolean;
   tagsWrap: boolean;
   promptText?: string;

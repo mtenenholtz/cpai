@@ -1,6 +1,6 @@
 # cpai
 
-**cpai** helps you **scan** and **bulk copy** code (or any text files) into a single prompt for an LLM, while keeping an eye on **token usage**. It supports globs, `.gitignore`/`.cpaiignore`, packing under a token budget, and rendering as Markdown / plain / JSON. Powered by [`@dqbd/tiktoken`](https://www.npmjs.com/package/@dqbd/tiktoken).
+**cpai** helps you **scan** and **bulk copy** code (or any text files) into a single prompt for an LLM, while keeping an eye on **token usage**. It supports globs, `.gitignore`/`.cpaiignore`, packing under a token budget, and rendering as Markdown or JSON. Powered by [`@dqbd/tiktoken`](https://www.npmjs.com/package/@dqbd/tiktoken).
 
 ## Install (local dev)
 
@@ -25,16 +25,22 @@ Scan a project:
 cpai scan . --by-dir
 ```
 
-Copy as tags (default) to stdout:
+Copy to clipboard (default):
 
 ```bash
 cpai copy . --include "src/**/*" --exclude "src/**/*.test.ts"
 ```
 
-Fit under a 120k token budget, small files first, copy to clipboard:
+Print to stdout instead of just clipboard:
 
 ```bash
-cpai copy . --max-tokens 120000 --pack-order small-first --clip
+cpai copy . --stdout --include "src/**/*" --exclude "src/**/*.test.ts"
+```
+
+Fit under a 120k token budget, small files first (copied to clipboard by default):
+
+```bash
+cpai copy . --max-tokens 120000 --pack-order small-first
 ```
 
 Write to a file:
@@ -96,10 +102,10 @@ pnpm link --global
 cpai scan . --by-dir
 ```
 
-3. **Create a paste-ready Markdown bundle**
+3. **Create a paste-ready Markdown bundle (copied to clipboard)**
 
 ```bash
-cpai copy . --include "src/**/*,README.md" --exclude "src/**/*.test.ts" --max-tokens 120000 --clip
+cpai copy . --include "src/**/*,README.md" --exclude "src/**/*.test.ts" --max-tokens 120000
 ```
 
 This will produce something like:
@@ -152,6 +158,7 @@ cpai tui .
 j/k or Arrow keys   move selection
 h/l (Files)         collapse / expand directory
 h/l (panes)         move focus Files ↔ Rankings
+w                   swap focus Files ↔ Rankings
 space               include/exclude file or directory
 d                   toggle right pane: Rankings ↔ Details
 p                   open Instructions Editor (Esc save, Ctrl+Q cancel)
@@ -181,7 +188,7 @@ repo/
 
 - Any ad‑hoc text you entered in the editor is added at the top as an `<INSTRUCTIONS>` block and duplicated at the bottom.
 - Any saved prompts you selected are added at the top as `<PROMPT name="…">…</PROMPT>` blocks.
-- Prefer different output styles (markdown/plain/XML)? Use the CLI: `cpai copy` (see below).
+- Prefer different output styles (markdown or JSON)? Use the CLI: `cpai copy` (see below).
 
 ### Options you’ll actually use
 
@@ -207,7 +214,7 @@ Windows/WSL
 - Prefer UTF‑8 terminals (Windows Terminal, PowerShell 7+). If characters look odd, switch the code page to UTF‑8.
 
  Troubleshooting
- - No clipboard? Use `cpai copy . -o out.txt` or redirect: `cpai copy . > out.txt`. Ensure OSC52 passthrough is enabled (tmux) or a system clipboard tool is installed.
+ - No clipboard? Use `cpai copy . --stdout > out.txt` or write to a file: `cpai copy . -o out.txt`. Ensure OSC52 passthrough is enabled (tmux) or a system clipboard tool is installed.
 - Small terminal? Increase size; the TUI needs roughly 68×12 or larger.
 - Auto‑refresh: The TUI detects added/removed files and rescans automatically (polls every ~2s). Adjust with `CPAI_TUI_POLL_MS`.
 
@@ -280,7 +287,7 @@ Top-level keys
 - `maxBytesPerFile`: number. Skip files larger than this (bytes). Default 512000.
 - `model`: string. Used for tokenization heuristics (e.g., `gpt-4o-mini`).
 - `encoding`: string. Explicit tiktoken encoding (e.g., `o200k_base`).
-- `format`: `"markdown" | "plain" | "json"`. Rendering mode for `cpai copy` and defaults in TUI.
+- `format`: `"markdown" | "json"`. Rendering mode for `cpai copy` and defaults in TUI.
 - `mouse`: boolean. Default mouse behavior for the TUI.
 - `instructions`: string. Default instructions inserted at the top (and duplicated at the bottom) of rendered output.
 - `instructionsFile`: string. Path to a file whose contents become default `instructions`.
@@ -306,7 +313,6 @@ Profile fields
   - `tagsWrap`: boolean. Default true. Wrap files as `<FILE_n path="…">…</FILE_n>`.
   - `xmlWrap`: boolean. Wrap output in XML with `<tree>` and `<file>` elements.
   - `codeFences`: boolean. For markdown format, include ``` fences (default true).
-  - `blockSeparator`: string. Plain-text separator between files for plain format (default `\n\n`).
   - `packOrder`: `"small-first" | "large-first" | "path"`. Greedy packing order.
   - `strict`: boolean. Re-count rendered tokens and trim to budget if needed (default true).
   - `mouse`: boolean. Per-profile TUI mouse override.

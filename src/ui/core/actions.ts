@@ -116,7 +116,6 @@ export async function renderPackedText(
     strict: state.strict,
     codeFences: true,
     header: undefined,
-    blockSeparator: '\n\n',
     xmlWrap: state.xmlWrap,
     tagsWrap: state.tagsWrap,
     promptText: composePrompt(state),

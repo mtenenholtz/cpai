@@ -37,12 +37,12 @@ cpai scan . --by-dir
 pnpm dlx tsx src/cli.ts scan . --by-dir
 ```
 
-3. Copy a packed bundle under a token budget:
+3. Copy a packed bundle under a token budget (to clipboard by default):
 
 ```bash
-cpai copy . --max-tokens 80000 --clip --by-dir
+cpai copy . --max-tokens 80000 --by-dir
 # or without linking:
-pnpm dlx tsx src/cli.ts copy . --max-tokens 80000 --clip --by-dir
+pnpm dlx tsx src/cli.ts copy . --max-tokens 80000 --by-dir
 ```
 
 4. Launch the Ink TUI:
