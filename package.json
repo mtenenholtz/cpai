@@ -1,6 +1,6 @@
 {
   "name": "cpai",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "type": "module",
   "description": "Use web-only models (e.g., GPT-5 Pro) with your local codebase: scan, pack to token limits, and copy a paste-ready bundle.",
   "bin": {
