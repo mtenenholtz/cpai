@@ -350,7 +350,7 @@ program
     "directory of saved prompts to pick (default: ./prompts or ./.aicp/prompts)"
   )
   .option("--pick-prompts", "open saved prompts picker on launch", false)
-  .option("--ui <ui>", "UI backend: ink | blessed", "blessed")
+  .option("--ui <ui>", "UI backend: ink", "ink")
   .option("--mouse", "enable mouse hover/selection in the TUI (overrides config)")
   .action(async (dirArg, opts) => {
     const cwd = path.resolve(process.cwd(), opts.cwd || dirArg || ".");
@@ -366,7 +366,7 @@ program
     if (opts.prompt) {
       promptText = String(opts.prompt);
     }
-    const uiKind = String(opts.ui) === 'ink' ? 'ink' : 'blessed';
+    const uiKind: 'ink' = 'ink';
     try {
       const adapter = await getTuiAdapter(uiKind);
       let mouseFlag: boolean | undefined = undefined;

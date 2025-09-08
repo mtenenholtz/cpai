@@ -456,7 +456,7 @@ export function App(props: {cwd: string; promptText?: string; promptsDir?: strin
   if (error) return (
     <Box flexDirection="column">
       <Text color="red">Ink UI failed: {error}</Text>
-      <Text>Try running with --ui blessed</Text>
+      <Text>Check configuration and try again.</Text>
     </Box>
   );
 
