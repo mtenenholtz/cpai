@@ -1,4 +1,4 @@
-export type OutputFormat = "markdown" | "json";
+export type OutputFormat = 'markdown' | 'json';
 
 export interface BaseOptions {
   cwd: string;
@@ -20,7 +20,7 @@ export interface CopyOptions extends BaseOptions {
   toClipboard: boolean;
   byDir: boolean; // if we want directory-level report too
   maxTokens?: number; // budget for packed copy
-  packOrder: "small-first" | "large-first" | "path";
+  packOrder: 'small-first' | 'large-first' | 'path';
   strict: boolean; // enforce maxTokens after rendering (drop trailing files if needed)
   codeFences: boolean;
   header?: string;

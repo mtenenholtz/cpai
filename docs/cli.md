@@ -64,9 +64,9 @@ Key options:
 - `--strict` re-render and strictly enforce the token budget
 - `--no-code-fences` (markdown only)
 - `--header <text>` arbitrary prefix
- - `--no-tags` (disable the default `<FILE_n>` tags)
-   - By default, copy output is wrapped per file with `<FILE_n path="...">...</FILE_n>`.
-   - See docs/formats.md for examples (including XML bundles via profile configuration).
+- `--no-tags` (disable the default `<FILE_n>` tags)
+  - By default, copy output is wrapped per file with `<FILE_n path="...">...</FILE_n>`.
+  - See docs/formats.md for examples (including XML bundles via profile configuration).
 - `-P, --profile <name>` use a named profile from config
 - `-i, --instructions <text>` / `--instructions-file <path>` include ad‑hoc instructions
 - `--by-dir` also print directory breakdown to stderr

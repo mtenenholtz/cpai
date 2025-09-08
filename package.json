@@ -2,7 +2,7 @@
   "name": "cpai",
   "version": "0.1.0",
   "type": "module",
-  "description": "Bulk copy code/files to paste into an LLM, with token inspection & include/exclude controls.",
+  "description": "Use web-only models (e.g., GPT-5 Pro) with your local codebase: scan, pack to token limits, and copy a paste-ready bundle.",
   "bin": {
     "cpai": "./dist/cli.js"
   },

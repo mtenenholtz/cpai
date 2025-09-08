@@ -1,7 +1,9 @@
 # Troubleshooting
 
 ## “Ink UI requires dependencies that are not installed”
+
 Run:
+
 ```bash
 pnpm install
 pnpm run build
@@ -17,6 +19,7 @@ Then retry `cpai tui .`. (The Ink adapter dynamically imports `ink` and `react`.
   ```
   set -g set-clipboard on
   ```
+
 - If SSH/remote, ensure your terminal supports OSC52 or write to a file instead (`-o bundle.md`) and copy manually.
 
 ## “too-large” or missing files
@@ -45,6 +48,7 @@ Then retry `cpai tui .`. (The Ink adapter dynamically imports `ink` and `react`.
   ```bash
   cpai tui . --mouse
   ```
+
 - Some terminals/tmux configs remap mouse modes; if it behaves oddly, run without mouse and use keys.
 
 ## Windows/WSL display oddities

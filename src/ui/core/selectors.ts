@@ -6,4 +6,3 @@ export function buildEligible(state: State): FileEntry[] {
   const auto = state.autoDeselected;
   return state.files.filter((f) => !s.has(f.relPath) && !auto.has(f.relPath));
 }
-

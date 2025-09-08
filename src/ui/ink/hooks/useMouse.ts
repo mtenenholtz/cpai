@@ -1,4 +1,4 @@
-import {useEffect} from 'react';
+import { useEffect } from 'react';
 
 export type MouseEvent = {
   x: number; // 1-based column

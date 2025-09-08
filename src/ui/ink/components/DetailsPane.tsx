@@ -1,5 +1,5 @@
-import React, {useMemo} from 'react';
-import {Box, Text} from 'ink';
+import React, { useMemo } from 'react';
+import { Box, Text } from 'ink';
 import type { State } from '../../core/state.js';
 import { buildEligible } from '../../core/selectors.js';
 import { buildDirTree, makeVisibleTree } from '../../core/tree.js';
@@ -22,7 +22,8 @@ export function DetailsPane(props: { state: State; selectedIdx: number; height: 
         <Box flexDirection="column">
           <Text color="cyan">{f.relPath}</Text>
           <Text>
-            bytes={humanBytes(f.bytes)}  lines={f.lines}  tokens={f.tokens}  {excluded ? 'EXCLUDED' : 'INCLUDED'}
+            bytes={humanBytes(f.bytes)} lines={f.lines} tokens={f.tokens}{' '}
+            {excluded ? 'EXCLUDED' : 'INCLUDED'}
           </Text>
         </Box>
       );
@@ -37,13 +38,17 @@ export function DetailsPane(props: { state: State; selectedIdx: number; height: 
         bytes += f.bytes;
         lines += f.lines;
         tokens += f.tokens;
-        if (!state.manualExcluded.has(f.relPath) && !state.autoDeselected.has(f.relPath)) included += 1;
+        if (!state.manualExcluded.has(f.relPath) && !state.autoDeselected.has(f.relPath))
+          included += 1;
       }
       return (
         <Box flexDirection="column">
-          <Text color="cyan">{((node.node.path === '.' ? path.basename(state.cwd || '.') : node.node.path) + '/')}</Text>
+          <Text color="cyan">
+            {(node.node.path === '.' ? path.basename(state.cwd || '.') : node.node.path) + '/'}
+          </Text>
           <Text>
-            selected={included}/{files.length} files  tokens={tokens}  lines={lines}  bytes={humanBytes(bytes)}
+            selected={included}/{files.length} files tokens={tokens} lines={lines} bytes=
+            {humanBytes(bytes)}
           </Text>
         </Box>
       );

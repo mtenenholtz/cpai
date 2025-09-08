@@ -1,6 +1,6 @@
 # CPAI Documentation
 
-Welcome to CPAI — a CLI and TUI for scanning repositories, inspecting token usage, and composing copyable bundles for LLM workflows.
+CPAI makes it easy to use web‑only models like GPT‑5 Pro with your local codebase. It scans your repo, fits selections under token limits, and copies a clean, paste‑ready bundle for the model’s web UI.
 
 This documentation covers:
 

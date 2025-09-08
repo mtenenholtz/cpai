@@ -17,16 +17,16 @@ Precedence: CLI flags > project config > global config > defaults.
 
 ```jsonc
 {
-  "include": ["**/*"],               // globs
+  "include": ["**/*"], // globs
   "exclude": ["**/node_modules/**"], // globs
   "useGitignore": true,
-  "useCpaiIgnore": true,              // honors project + global ~/.cpai/.cpaiignore
+  "useCpaiIgnore": true, // honors project + global ~/.cpai/.cpaiignore
   "hidden": false,
   "maxBytesPerFile": 512000,
   "model": "gpt-4o-mini",
   "encoding": "o200k_base",
-  "format": "markdown",             // markdown | json (CLI copy)
-  "mouse": false,                    // TUI mouse support (also overridable via --mouse)
+  "format": "markdown", // markdown | json (CLI copy)
+  "mouse": false, // TUI mouse support (also overridable via --mouse)
 
   // Optional prompt to append/prepend in copy
   "prompt": "...",
@@ -38,9 +38,9 @@ Precedence: CLI flags > project config > global config > defaults.
       "include": ["src/**", "README.md"],
       "exclude": ["**/*.test.ts"],
       "packOrder": "path",
-      "strict": true
-    }
-  }
+      "strict": true,
+    },
+  },
 }
 ```
 

@@ -8,7 +8,7 @@ import prettier from 'eslint-config-prettier';
 
 export default [
   {
-    ignores: ['dist/**', 'node_modules/**', 'coverage/**', 'vitest.config.ts']
+    ignores: ['dist/**', 'node_modules/**', 'coverage/**', 'vitest.config.ts'],
   },
   js.configs.recommended,
   {
@@ -20,9 +20,9 @@ export default [
         setTimeout: 'readonly',
         clearTimeout: 'readonly',
         setInterval: 'readonly',
-        clearInterval: 'readonly'
-      }
-    }
+        clearInterval: 'readonly',
+      },
+    },
   },
   {
     files: ['src/**/*.ts', 'src/**/*.tsx'],
@@ -33,11 +33,11 @@ export default [
         sourceType: 'module',
         // Enable type-aware linting
         project: true,
-        tsconfigRootDir: import.meta.dirname
-      }
+        tsconfigRootDir: import.meta.dirname,
+      },
     },
     plugins: {
-      '@typescript-eslint': tsPlugin
+      '@typescript-eslint': tsPlugin,
     },
     rules: {
       // Align with project style
@@ -52,10 +52,10 @@ export default [
       'no-control-regex': 'off',
       '@typescript-eslint/no-unused-vars': [
         'warn',
-        { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }
+        { argsIgnorePattern: '^_', varsIgnorePattern: '^_' },
       ],
-      '@typescript-eslint/consistent-type-imports': 'error'
-    }
+      '@typescript-eslint/consistent-type-imports': 'error',
+    },
   },
   {
     files: ['src/**/*.test.ts', 'src/**/*.test.tsx'],
@@ -69,10 +69,10 @@ export default [
         afterAll: 'readonly',
         beforeEach: 'readonly',
         afterEach: 'readonly',
-        vi: 'readonly'
-      }
-    }
+        vi: 'readonly',
+      },
+    },
   },
   // Put Prettier last to disable conflicting stylistic rules
-  prettier
+  prettier,
 ];

@@ -1,6 +1,6 @@
 # cpai
 
-**cpai** helps you **scan** and **bulk copy** code (or any text files) into a single prompt for an LLM, while keeping an eye on **token usage**. It supports globs, `.gitignore`/`.cpaiignore`, packing under a token budget, and rendering as Markdown or JSON. Powered by [`@dqbd/tiktoken`](https://www.npmjs.com/package/@dqbd/tiktoken).
+**cpai** makes it easy to use web‑only models like **GPT‑5 Pro** with your local codebase. It scans your repo, packs selected files to fit token limits, and copies a clean, paste‑ready bundle for the model’s web UI.
 
 ## Install (local dev)
 
@@ -78,11 +78,9 @@ Create `.cpairc.json` (or put a `cpai` field in `package.json`):
 
 ## Tips
 
-* Use `--include`/`--exclude` globs to trim noise (tests, build artifacts, fixtures).
-* Respect `.gitignore` by default, and add additional rules in `.cpaiignore`.
-* For legacy models, consider `--encoding cl100k_base`.
-
-
+- Use `--include`/`--exclude` globs to trim noise (tests, build artifacts, fixtures).
+- Respect `.gitignore` by default, and add additional rules in `.cpaiignore`.
+- For legacy models, consider `--encoding cl100k_base`.
 
 ---
 
@@ -112,6 +110,7 @@ This will produce something like:
 
 ````md
 ### src/index.ts
+
 ```ts
 // your file contents…
 ```
@@ -121,7 +120,6 @@ This will produce something like:
 ```ts
 // …
 ```
-
 ````
 
 ---
@@ -130,13 +128,14 @@ This will produce something like:
 
 ### Quickstart (≈1 minute)
 
-1) Launch in your repo
+1. Launch in your repo
 
 ```bash
 cpai tui .
 ```
 
-2) Pick files
+2. Pick files
+
 - Move with `j`/`k` or arrow keys.
 - Press `space` to include/exclude the highlighted item.
 - On a directory, `space` toggles everything inside.
@@ -144,11 +143,13 @@ cpai tui .
 - Press `d` to switch the right pane between Rankings and Details.
 - In Rankings, `space` on a row toggles that file or the entire folder.
 
-3) Add instructions / prompts (optional)
+3. Add instructions / prompts (optional)
+
 - `p` opens the full‑screen Instructions Editor (Esc saves; Ctrl+Q cancels).
 - `Ctrl+P` opens the Saved Prompts picker (space to toggle, Enter to apply).
 
-4) Copy
+4. Copy
+
 - Press `c` to copy the composed bundle to your clipboard (OSC52 fallback).
 - Paste into your LLM of choice.
 
@@ -198,12 +199,15 @@ repo/
 - `--pick-prompts` — open the prompts picker on launch
 
 Mouse
+
 - Off by default; run with `cpai tui . --mouse`. Click to focus/select, wheel to scroll.
 
 Auto‑refresh
+
 - The TUI rescans automatically ~every 2s. Tune with `CPAI_TUI_POLL_MS`.
 
 Clipboard notes (tmux/screen/SSH)
+
 - Uses system clipboard via `clipboardy`, falling back to OSC52.
 - Under tmux, enable OSC52 passthrough:
   ```
@@ -211,10 +215,12 @@ Clipboard notes (tmux/screen/SSH)
   ```
 
 Windows/WSL
+
 - Prefer UTF‑8 terminals (Windows Terminal, PowerShell 7+). If characters look odd, switch the code page to UTF‑8.
 
- Troubleshooting
- - No clipboard? Use `cpai copy . --stdout > out.txt` or write to a file: `cpai copy . -o out.txt`. Ensure OSC52 passthrough is enabled (tmux) or a system clipboard tool is installed.
+Troubleshooting
+
+- No clipboard? Use `cpai copy . --stdout > out.txt` or write to a file: `cpai copy . -o out.txt`. Ensure OSC52 passthrough is enabled (tmux) or a system clipboard tool is installed.
 - Small terminal? Increase size; the TUI needs roughly 68×12 or larger.
 - Auto‑refresh: The TUI detects added/removed files and rescans automatically (polls every ~2s). Adjust with `CPAI_TUI_POLL_MS`.
 
@@ -239,13 +245,15 @@ cpai tui . --prompts-dir ./prompts --pick-prompts
 ```
 
 In the UI:
+
 - `p` edits ad‑hoc instructions (included at the top and duplicated at the bottom of the final output).
 - `Ctrl+P` opens a Prompts Picker (space to toggle, Enter to apply).
- - The final preface includes an `<INSTRUCTIONS>` block at the top. Any selected saved prompts are added beneath it as separate `<PROMPT name="...">` blocks. Only the `<INSTRUCTIONS>` block is duplicated at the end of the output.
+- The final preface includes an `<INSTRUCTIONS>` block at the top. Any selected saved prompts are added beneath it as separate `<PROMPT name="...">` blocks. Only the `<INSTRUCTIONS>` block is duplicated at the end of the output.
 
 Status bar shows an approximate token count for the current selection.
 
 Tree & Rankings
+
 - Files/dirs show aligned token counts. Use `space` to toggle inclusion on a file or on an entire directory (either from Files or from the Rankings “Folders” column).
 
 ---
@@ -279,6 +287,7 @@ Example minimal config:
 ```
 
 Top-level keys
+
 - `include`: array of globs. Files considered for scanning/packing. Defaults to `**/*`.
 - `exclude`: array of globs. Excludes common deps/build/binary assets by default.
 - `useGitignore`: boolean. When true, respects `.gitignore` patterns.
@@ -294,6 +303,7 @@ Top-level keys
 - `selectedPrompts`: array of names to auto-include from saved prompts directories.
 
 Saved prompts
+
 - Place `.md`, `.txt`, or `.prompt` files in any of:
   - Project: `./.cpai/prompts/` or `./prompts/`
   - Global: `~/.cpai/prompts/`
@@ -302,13 +312,16 @@ Saved prompts
 - CLI copy: any `selectedPrompts` are added as `<PROMPT name="…">…</PROMPT>` blocks at the top.
 
 `.cpaiignore`
+
 - Add ignore-style patterns (one per line) to auto-deselect in the TUI and exclude in CLI.
 - Common large/binary formats are excluded by default; adjust here as needed.
 
 Profiles (`profiles`)
+
 - Define named overrides for common scenarios. Specify in `.cpairc.json` or global config, then use with `cpai copy . --profile <name>`.
 
 Profile fields
+
 - All top-level keys above are allowed inside a profile. Additional copy-tuning keys:
   - `tagsWrap`: boolean. Default true. Wrap files as `<FILE_n path="…">…</FILE_n>`.
   - `xmlWrap`: boolean. Wrap output in XML with `<tree>` and `<file>` elements.
@@ -336,7 +349,6 @@ Profile example
   }
 }
 ```
-
 
 ## Profiles and Prompt Injection
 

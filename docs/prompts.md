@@ -2,8 +2,8 @@
 
 CPAI composes a final prompt from:
 
-1) Selected saved prompts (multi‑select)
-2) Ad‑hoc prompt text (inline or full‑screen editor)
+1. Selected saved prompts (multi‑select)
+2. Ad‑hoc prompt text (inline or full‑screen editor)
 
 Ad‑hoc instructions are added at the top and duplicated at the bottom when you run `cpai copy` or use the TUI Copy action. Saved prompts are added at the top only.
 
@@ -61,5 +61,6 @@ Project or global config can also set default instructions via `prompt` or `prom
 `cpai copy` accepts `-i, --instructions` / `--instructions-file` and will combine those with any prompts selected by the TUI in the session.
 
 **Composition details**
+
 - Ad‑hoc instructions are wrapped in `<INSTRUCTIONS>…</INSTRUCTIONS>` at the top, and that block is duplicated again at the bottom.
 - Saved prompts are added only at the top as `<PROMPT name="…">…</PROMPT>` blocks.

@@ -1,7 +1,12 @@
 import type { FileEntry } from '../../types.js';
 import type { State } from './state.js';
 
-export type DirNode = { name: string; path: string; dirs: Map<string, DirNode>; files: FileEntry[] };
+export type DirNode = {
+  name: string;
+  path: string;
+  dirs: Map<string, DirNode>;
+  files: FileEntry[];
+};
 
 export function buildDirTree(files: FileEntry[], rootName: string = '.'): DirNode {
   const root: DirNode = { name: rootName, path: '.', dirs: new Map(), files: [] };
@@ -33,7 +38,7 @@ export type VisibleNode =
 
 export function computeDirStats(
   node: DirNode,
-  eligibleSet: Set<string>
+  eligibleSet: Set<string>,
 ): { tokens: number; included: number; total: number } {
   let tokens = 0;
   let included = 0;
@@ -57,7 +62,7 @@ export function computeDirStats(
 export function makeVisibleTree(
   root: DirNode,
   expanded: Set<string>,
-  eligibleSet: Set<string>
+  eligibleSet: Set<string>,
 ): VisibleNode[] {
   const out: VisibleNode[] = [];
   function walk(n: DirNode, depth: number) {

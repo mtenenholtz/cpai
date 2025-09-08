@@ -3,15 +3,19 @@
 CPAI can render Markdown, JSON, and an XML bundle.
 
 ## Markdown (default)
+
 - Per‑file `### path` headings.
 - Code fences on by default (disable with `--no-code-fences`).
 
-```md
+````md
 ### src/lib/utils.ts
+
 ```ts
 // ...
 ```
-```
+````
+
+````
 
 ## JSON
 
@@ -19,7 +23,7 @@ CPAI can render Markdown, JSON, and an XML bundle.
 
 ```bash
 cpai copy . -f json > files.json
-```
+````
 
 ## Per‑file tags (default wrapper)
 

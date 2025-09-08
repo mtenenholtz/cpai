@@ -19,12 +19,13 @@ async function loadModule(): Promise<TiktokenModule> {
  * These defaults reflect common pairings but may not be exact for every vendor.
  */
 function defaultEncodingForModel(model?: string): string {
-  if (!model) return "o200k_base";
+  if (!model) return 'o200k_base';
   const m = model.toLowerCase();
-  if (m.includes("4o") || m.includes("4.1") || m.startsWith("o3") || m.startsWith("o1")) return "o200k_base";
-  if (m.includes("gpt-4") || m.includes("gpt-3.5")) return "cl100k_base";
+  if (m.includes('4o') || m.includes('4.1') || m.startsWith('o3') || m.startsWith('o1'))
+    return 'o200k_base';
+  if (m.includes('gpt-4') || m.includes('gpt-3.5')) return 'cl100k_base';
   // fallback
-  return "o200k_base";
+  return 'o200k_base';
 }
 
 /**
@@ -49,7 +50,7 @@ export async function ensureEncoder(model?: string, encodingOverride?: string) {
   }
 
   // Free on exit to reduce leaks for long-lived shells.
-  process.on("exit", () => {
+  process.on('exit', () => {
     try {
       encoder?.free();
     } catch {}

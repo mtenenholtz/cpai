@@ -1,11 +1,11 @@
-import fs from "node:fs/promises";
-import path from "node:path";
-import { globby } from "globby";
-import binaryExtensions from "binary-extensions";
-import { extnameLower, toPosix } from "./utils.js";
-import { ensureEncoder } from "./tokenizer.js";
-import type { FileEntry, ScanOptions, ScanResult } from "../types.js";
-import os from "node:os";
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import { globby } from 'globby';
+import binaryExtensions from 'binary-extensions';
+import { extnameLower, toPosix } from './utils.js';
+import { ensureEncoder } from './tokenizer.js';
+import type { FileEntry, ScanOptions, ScanResult } from '../types.js';
+import os from 'node:os';
 
 const binarySet = new Set(binaryExtensions.map((e) => e.toLowerCase()));
 
@@ -14,19 +14,22 @@ function looksBinaryByExt(p: string) {
   return binarySet.has(ext);
 }
 
-async function readMaybeText(file: string, maxBytes: number): Promise<{ content?: string; bytes: number; reason?: string }> {
+async function readMaybeText(
+  file: string,
+  maxBytes: number,
+): Promise<{ content?: string; bytes: number; reason?: string }> {
   try {
     const stat = await fs.stat(file);
-    if (!stat.isFile()) return { bytes: 0, reason: "not-a-file" };
-    if (stat.size > maxBytes) return { bytes: stat.size, reason: "too-large" };
+    if (!stat.isFile()) return { bytes: 0, reason: 'not-a-file' };
+    if (stat.size > maxBytes) return { bytes: stat.size, reason: 'too-large' };
     const buf = await fs.readFile(file);
     // Truncate to maxBytes (redundant, but safe)
     const slice = buf.subarray(0, maxBytes);
     // Heuristic: treat as text if UTF-8 decoding succeeds without too many control chars
-    const content = slice.toString("utf8");
+    const content = slice.toString('utf8');
     return { content, bytes: stat.size };
   } catch (e: any) {
-    return { bytes: 0, reason: e?.message ?? "read-error" };
+    return { bytes: 0, reason: e?.message ?? 'read-error' };
   }
 }
 
@@ -40,12 +43,12 @@ export async function scan(options: ScanOptions): Promise<ScanResult> {
     hidden,
     maxBytesPerFile,
     model,
-    encoding
+    encoding,
   } = options;
 
   // .cpaiignore is handled below by re-running globby with extra ignores
 
-  const patterns = include.length ? include : ["**/*"];
+  const patterns = include.length ? include : ['**/*'];
   const paths = await globby(patterns, {
     cwd,
     gitignore: useGitignore,
@@ -60,17 +63,27 @@ export async function scan(options: ScanOptions): Promise<ScanResult> {
   if (useCpaiIgnore) {
     const extra: string[] = [];
     try {
-      const raw = await fs.readFile(path.join(cwd, ".cpaiignore"), "utf8");
+      const raw = await fs.readFile(path.join(cwd, '.cpaiignore'), 'utf8');
       if (raw) {
-        extra.push(...raw.split(/\r?\n/).map((l) => l.trim()).filter((l) => l && !l.startsWith("#")));
+        extra.push(
+          ...raw
+            .split(/\r?\n/)
+            .map((l) => l.trim())
+            .filter((l) => l && !l.startsWith('#')),
+        );
       }
     } catch {}
     try {
-      const home = os.homedir?.() || process.env.HOME || process.env.USERPROFILE || "";
+      const home = os.homedir?.() || process.env.HOME || process.env.USERPROFILE || '';
       if (home) {
         try {
-          const rawG = await fs.readFile(path.join(home, ".cpai", ".cpaiignore"), "utf8");
-          extra.push(...rawG.split(/\r?\n/).map((l) => l.trim()).filter((l) => l && !l.startsWith("#")));
+          const rawG = await fs.readFile(path.join(home, '.cpai', '.cpaiignore'), 'utf8');
+          extra.push(
+            ...rawG
+              .split(/\r?\n/)
+              .map((l) => l.trim())
+              .filter((l) => l && !l.startsWith('#')),
+          );
         } catch {}
       }
     } catch {}
@@ -81,7 +94,7 @@ export async function scan(options: ScanOptions): Promise<ScanResult> {
         ignore: [...exclude, ...extra],
         dot: hidden,
         onlyFiles: true,
-        followSymbolicLinks: false
+        followSymbolicLinks: false,
       });
       paths.splice(0, paths.length, ...paths2);
     }
@@ -110,7 +123,7 @@ export async function scan(options: ScanOptions): Promise<ScanResult> {
         tokens: 0,
         ext,
         skipped: true,
-        reason: "binary-ext"
+        reason: 'binary-ext',
       });
       continue;
     }
@@ -125,7 +138,7 @@ export async function scan(options: ScanOptions): Promise<ScanResult> {
         tokens: 0,
         ext,
         skipped: true,
-        reason
+        reason,
       });
       continue;
     }
@@ -139,7 +152,7 @@ export async function scan(options: ScanOptions): Promise<ScanResult> {
       bytes,
       lines,
       tokens,
-      ext
+      ext,
     });
 
     totalTokens += tokens;
@@ -161,7 +174,11 @@ export async function scan(options: ScanOptions): Promise<ScanResult> {
 // --- Concurrent scan with progress/cancellation (non-breaking additive API) ---
 export async function scanConcurrent(
   options: ScanOptions,
-  extra?: { concurrency?: number; onProgress?: (done: number, total: number) => void; signal?: AbortSignal }
+  extra?: {
+    concurrency?: number;
+    onProgress?: (done: number, total: number) => void;
+    signal?: AbortSignal;
+  },
 ): Promise<ScanResult> {
   const {
     cwd,
@@ -172,35 +189,47 @@ export async function scanConcurrent(
     hidden,
     maxBytesPerFile,
     model,
-    encoding
+    encoding,
   } = options;
 
   const concurrency = Math.max(1, Math.min(64, extra?.concurrency ?? 16));
   const onProgress = extra?.onProgress;
   const signal = extra?.signal;
 
-  const patterns = include.length ? include : ["**/*"];
+  const patterns = include.length ? include : ['**/*'];
   let paths = await globby(patterns, {
     cwd,
     gitignore: useGitignore,
     ignore: exclude,
     dot: hidden,
     onlyFiles: true,
-    followSymbolicLinks: false
+    followSymbolicLinks: false,
   });
 
   if (useCpaiIgnore) {
     const extraEx: string[] = [];
     try {
-      const raw = await fs.readFile(path.join(cwd, ".cpaiignore"), "utf8");
-      if (raw) extraEx.push(...raw.split(/\r?\n/).map((l) => l.trim()).filter((l) => l && !l.startsWith("#")));
+      const raw = await fs.readFile(path.join(cwd, '.cpaiignore'), 'utf8');
+      if (raw)
+        extraEx.push(
+          ...raw
+            .split(/\r?\n/)
+            .map((l) => l.trim())
+            .filter((l) => l && !l.startsWith('#')),
+        );
     } catch {}
     try {
-      const home = os.homedir?.() || process.env.HOME || process.env.USERPROFILE || "";
+      const home = os.homedir?.() || process.env.HOME || process.env.USERPROFILE || '';
       if (home) {
         try {
-          const rawG = await fs.readFile(path.join(home, ".cpai", ".cpaiignore"), "utf8");
-          if (rawG) extraEx.push(...rawG.split(/\r?\n/).map((l) => l.trim()).filter((l) => l && !l.startsWith("#")));
+          const rawG = await fs.readFile(path.join(home, '.cpai', '.cpaiignore'), 'utf8');
+          if (rawG)
+            extraEx.push(
+              ...rawG
+                .split(/\r?\n/)
+                .map((l) => l.trim())
+                .filter((l) => l && !l.startsWith('#')),
+            );
         } catch {}
       }
     } catch {}
@@ -211,7 +240,7 @@ export async function scanConcurrent(
         ignore: [...exclude, ...extraEx],
         dot: hidden,
         onlyFiles: true,
-        followSymbolicLinks: false
+        followSymbolicLinks: false,
       });
     }
   }
@@ -240,7 +269,7 @@ export async function scanConcurrent(
         tokens: 0,
         ext,
         skipped: true,
-        reason: "binary-ext"
+        reason: 'binary-ext',
       };
     } else {
       const { content, bytes, reason } = await readMaybeText(abs, maxBytesPerFile);
@@ -253,7 +282,7 @@ export async function scanConcurrent(
           tokens: 0,
           ext,
           skipped: true,
-          reason
+          reason,
         };
       } else {
         const lines = content.split(/\r?\n/).length;

@@ -4,14 +4,20 @@ import { globby } from 'globby';
 import type { CopyOptions, FileEntry, ScanOptions } from '../../types.js';
 import { ensureEncoder, countTokens } from '../../lib/tokenizer.js';
 import { scanConcurrent } from '../../lib/scan.js';
-import { formatOutput, formatTags, formatXml, packFilesToBudget, wrapWithPrompt } from '../../lib/format.js';
+import {
+  formatOutput,
+  formatTags,
+  formatXml,
+  packFilesToBudget,
+  wrapWithPrompt,
+} from '../../lib/format.js';
 import type { State, SavedPrompt } from './state.js';
 import os from 'node:os';
 
 export async function rescan(
   state: State,
   onProgress?: (done: number, total: number) => void,
-  signal?: AbortSignal
+  signal?: AbortSignal,
 ): Promise<void> {
   await ensureEncoder(state.model, state.encoding);
   const opts: ScanOptions = {
@@ -53,15 +59,22 @@ export async function rescan(
         const kept = await globby(patterns, {
           cwd: state.cwd,
           gitignore: state.useGitignore,
-          ignore: [...state.exclude, ...extra, ...await (async () => {
-            const home = os.homedir?.() || process.env.HOME || process.env.USERPROFILE || '';
-            if (!home) return [] as string[];
-            try {
-              const rg = await fs.readFile(path.join(home, '.cpai', '.cpaiignore'), 'utf8');
-              return rg.split(/\r?\n/).map(l => l.trim()).filter(l => l && !l.startsWith('#'));
-            } catch {}
-            return [] as string[];
-          })()],
+          ignore: [
+            ...state.exclude,
+            ...extra,
+            ...(await (async () => {
+              const home = os.homedir?.() || process.env.HOME || process.env.USERPROFILE || '';
+              if (!home) return [] as string[];
+              try {
+                const rg = await fs.readFile(path.join(home, '.cpai', '.cpaiignore'), 'utf8');
+                return rg
+                  .split(/\r?\n/)
+                  .map((l) => l.trim())
+                  .filter((l) => l && !l.startsWith('#'));
+              } catch {}
+              return [] as string[];
+            })()),
+          ],
           dot: state.hidden,
           onlyFiles: true,
           followSymbolicLinks: false,
@@ -81,7 +94,12 @@ export function composePrompt(state: State): string | undefined {
   const picks = state.availablePrompts.filter((p) => state.selectedPrompts.has(p.name));
   const parts: string[] = [];
   const instructions = state.promptText?.trim();
-  const escAttr = (s: string) => s.replaceAll('&', '&amp;').replaceAll('"', '&quot;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
+  const escAttr = (s: string) =>
+    s
+      .replaceAll('&', '&amp;')
+      .replaceAll('"', '&quot;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;');
   if (instructions) {
     parts.push(`<INSTRUCTIONS>\n${instructions}\n</INSTRUCTIONS>`);
   }
@@ -95,7 +113,7 @@ export function composePrompt(state: State): string | undefined {
 
 export async function renderPackedText(
   entries: FileEntry[],
-  state: State
+  state: State,
 ): Promise<{ text: string; selected: FileEntry[]; tokens: number }> {
   const cfg: CopyOptions = {
     cwd: state.cwd,
@@ -122,11 +140,12 @@ export async function renderPackedText(
   };
   const { selected, rendered, tokens } = await packFilesToBudget(entries, cfg);
   let body =
-    rendered ?? (state.xmlWrap
+    rendered ??
+    (state.xmlWrap
       ? await formatXml(selected, cfg)
       : state.tagsWrap
-      ? await formatTags(selected, cfg)
-      : await formatOutput(selected, cfg));
+        ? await formatTags(selected, cfg)
+        : await formatOutput(selected, cfg));
   const text = wrapWithPrompt(body, composePrompt(state));
   // Ensure token count includes any instruction/prompt wrappers even when not strict
   const tokCount = tokens ?? (await countTokens(text));
@@ -146,9 +165,9 @@ export async function estimateTokens(entries: FileEntry[], state: State): Promis
   // Compose prompt and estimate top + bottom duplication like wrapWithPrompt/packFilesToBudget
   const prompt = composePrompt(state) ?? '';
   const preface = prompt
-    ? (prompt.includes('<INSTRUCTIONS>') || prompt.includes('<PROMPT')
-        ? prompt
-        : `<INSTRUCTIONS>\n${prompt}\n</INSTRUCTIONS>`)
+    ? prompt.includes('<INSTRUCTIONS>') || prompt.includes('<PROMPT')
+      ? prompt
+      : `<INSTRUCTIONS>\n${prompt}\n</INSTRUCTIONS>`
     : '';
   const instructionsOnlyMatch = /<INSTRUCTIONS>[\s\S]*?<\/INSTRUCTIONS>/i.exec(preface);
   const bottomBlock = instructionsOnlyMatch ? instructionsOnlyMatch[0] : preface;
@@ -190,7 +209,7 @@ export async function loadSavedPrompts(cwd: string, dirHint?: string): Promise<S
     dirHint ? path.resolve(cwd, dirHint) : null,
     path.join(cwd, '.cpai/prompts'),
     path.join(cwd, 'prompts'),
-    globalDir
+    globalDir,
   ] as (string | null)[];
   const out: SavedPrompt[] = [];
   for (const c of candidates) {
@@ -203,7 +222,8 @@ export async function loadSavedPrompts(cwd: string, dirHint?: string): Promise<S
         if (!['.md', '.txt', '.prompt'].includes(ext)) continue;
         const p = path.join(c, d.name);
         const text = await fs.readFile(p, 'utf8');
-        const origin: 'project' | 'global' = (globalDir && p.startsWith(globalDir)) ? 'global' : 'project';
+        const origin: 'project' | 'global' =
+          globalDir && p.startsWith(globalDir) ? 'global' : 'project';
         out.push({ name: path.basename(d.name, ext), path: p, text, origin });
       }
     } catch {}
