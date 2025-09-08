@@ -69,7 +69,7 @@ Key options:
    - Pass `--no-tags` to suppress those tags, or `--xml` to emit a full XML bundle with a `<tree>` section and `<files><file ...><![CDATA[...]]></file></files>`.
    - See docs/formats.md for examples.
 - `-P, --profile <name>` use a named profile from config
-- `--prompt <text>` / `--prompt-file <path>` include ad‑hoc instructions
+- `-i, --instructions <text>` / `--instructions-file <path>` include ad‑hoc instructions
 - `--by-dir` also print directory breakdown to stderr
 
 Config interaction:
@@ -105,7 +105,7 @@ Run the Ink TUI.
 
 Options:
 
-- `--prompt <text>` or `--prompt-file <path>` (prefill ad‑hoc prompt)
+- `-i, --instructions <text>` or `--instructions-file <path>` (prefill ad‑hoc instructions)
 - `--prompts-dir <dir>` (saved prompts additional directory)
 - `--pick-prompts` (open saved prompts on launch)
 - `--mouse` (enable mouse for this run; otherwise use config)

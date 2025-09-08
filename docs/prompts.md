@@ -38,7 +38,7 @@ Example (`.aicprc.json`):
 Behavior:
 
 - TUI: those prompts are pre-selected in the Saved Prompts picker on launch.
-- CLI `copy`: those prompts are included automatically in the composed prompt (as `<PROMPT name="...">…</PROMPT>` blocks), in addition to any ad‑hoc `--prompt`/`--prompt-file` text.
+- CLI `copy`: those prompts are included automatically in the composed prompt (as `<PROMPT name="...">…</PROMPT>` blocks), in addition to any ad‑hoc `-i/--instructions` or `--instructions-file` text.
 
 ## Using saved prompts in TUI
 
@@ -58,4 +58,4 @@ Project or global config can also set default instructions via `prompt` or `prom
 
 ## CLI composition
 
-`aicp copy` accepts `--prompt` / `--prompt-file` and will combine those with any prompts selected by the TUI in the session.
+`aicp copy` accepts `-i, --instructions` / `--instructions-file` and will combine those with any prompts selected by the TUI in the session.

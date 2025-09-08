@@ -208,8 +208,11 @@ program
   .option("--xml", "Wrap output in XML with <tree> and <file> tags", false)
   .option("--no-tags", "Do not wrap each file with <FILE_n> separators (default on)")
   .option("-P, --profile <name>", "use a named profile from .aicprc.json", "")
-  .option("--prompt <text>", "additional instruction text added to top and bottom")
-  .option("--prompt-file <path>", "read the prompt text from a file")
+  .option("-i, --instructions <text>", "additional instruction text added to top and bottom")
+  .option("--instructions-file <path>", "read the instructions text from a file")
+  // Back-compat (deprecated)
+  .option("--prompt <text>", "[deprecated] use --instructions instead")
+  .option("--prompt-file <path>", "[deprecated] use --instructions-file instead")
   .action(async (dirArg, opts) => {
     const cwd = path.resolve(process.cwd(), opts.cwd || dirArg || ".");
     const fileCfg = await loadAicpConfig(cwd);
@@ -218,13 +221,14 @@ program
     const profileName: string | undefined = opts.profile || undefined;
     const profile = profileName && fileCfg.profiles ? fileCfg.profiles[profileName] : undefined;
 
-    async function readPromptText(): Promise<string | undefined> {
-      const cliText: string | undefined = opts.prompt || undefined;
-      const cliFile: string | undefined = opts.promptFile || undefined;
-      const profText: string | undefined = (profile?.prompt as string | undefined) || undefined;
-      const profFile: string | undefined = (profile?.promptFile as string | undefined) || undefined;
-      const cfgText: string | undefined = (fileCfg.prompt as string | undefined) || undefined;
-      const cfgFile: string | undefined = (fileCfg.promptFile as string | undefined) || undefined;
+    async function readInstructionsText(): Promise<string | undefined> {
+      // Prefer new flags but accept deprecated ones for back-compat
+      const cliText: string | undefined = opts.instructions || opts.prompt || undefined;
+      const cliFile: string | undefined = opts.instructionsFile || opts.promptFile || undefined;
+      const profText: string | undefined = (((profile as any)?.instructions) as string | undefined) || (profile?.prompt as string | undefined) || undefined;
+      const profFile: string | undefined = (((profile as any)?.instructionsFile) as string | undefined) || (profile?.promptFile as string | undefined) || undefined;
+      const cfgText: string | undefined = (((fileCfg as any)?.instructions) as string | undefined) || (fileCfg.prompt as string | undefined) || undefined;
+      const cfgFile: string | undefined = (((fileCfg as any)?.instructionsFile) as string | undefined) || (fileCfg.promptFile as string | undefined) || undefined;
 
       const pickFile = cliFile || profFile || cfgFile;
       let instructions: string | undefined = undefined;
@@ -284,7 +288,7 @@ program
       return final || instructions;
     }
 
-    const promptText = await readPromptText();
+    const promptText = await readInstructionsText();
 
     // Normalize include/exclude similarly to scan via mergeConfigWithCli
     const baseCfg: CopyOptions = {
@@ -391,8 +395,11 @@ program
   .command("tui [dir]")
   .description("Interactive TUI to browse, filter, and bundle files")
   .option("-C, --cwd <dir>", "working directory (defaults to dir)", "")
-  .option("--prompt <text>", "prefill ad-hoc instructions", "")
-  .option("--prompt-file <path>", "prefill a prompt from a file")
+  .option("-i, --instructions <text>", "prefill ad-hoc instructions", "")
+  .option("--instructions-file <path>", "prefill instructions from a file")
+  // Back-compat (deprecated)
+  .option("--prompt <text>", "[deprecated] use --instructions instead", "")
+  .option("--prompt-file <path>", "[deprecated] use --instructions-file instead")
   .option(
     "--prompts-dir <dir>",
     "directory of saved prompts to pick (default: ./prompts or ./.aicp/prompts)"
@@ -402,16 +409,18 @@ program
   .action(async (dirArg, opts) => {
     const cwd = path.resolve(process.cwd(), opts.cwd || dirArg || ".");
     let promptText: string | undefined = undefined;
-    if (opts.promptFile) {
+    const fileOpt: string | undefined = opts.instructionsFile || opts.promptFile || undefined;
+    const textOpt: string | undefined = opts.instructions || opts.prompt || undefined;
+    if (fileOpt) {
       try {
-        const p = path.isAbsolute(opts.promptFile) ? opts.promptFile : path.join(cwd, opts.promptFile);
+        const p = path.isAbsolute(fileOpt) ? fileOpt : path.join(cwd, fileOpt);
         promptText = await fs.readFile(p, "utf8");
       } catch (e: any) {
-        console.error(chalk.yellow(`Failed to read --prompt-file: ${e?.message ?? e}`));
+        console.error(chalk.yellow(`Failed to read instructions file: ${e?.message ?? e}`));
       }
     }
-    if (opts.prompt) {
-      promptText = String(opts.prompt);
+    if (textOpt) {
+      promptText = String(textOpt);
     }
     try {
       const adapter = await getTuiAdapter();

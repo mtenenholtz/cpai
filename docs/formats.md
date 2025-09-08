@@ -62,5 +62,4 @@ repo/
 ### Headers and prompts
 
 - `--header "<text>"` prepends a header block.
-- `--prompt`/`--prompt-file` add a `<PROMPT>` block above and below the body; `--strict` accounts for this in token budgets.
-
+- `-i, --instructions` / `--instructions-file` add a `<PROMPT>` block above and below the body; `--strict` accounts for this in token budgets.

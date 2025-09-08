@@ -178,9 +178,9 @@ New flags & features:
 Start with instructions prefilled
 
 ```bash
-aicp tui . --prompt "Refactor for clarity"
+aicp tui . -i "Refactor for clarity"
 # or
-aicp tui . --prompt-file .prompt.txt
+aicp tui . --instructions-file .prompt.txt
 ```
 
 Pick saved prompts (multi-select)
@@ -193,7 +193,7 @@ aicp tui . --prompts-dir ./prompts --pick-prompts
 
 In the UI:
 - `p` edits ad‑hoc instructions (included at top & bottom).
-- `P` opens a Prompts Picker (space to toggle, `v` to preview, Enter to apply).
+- `Ctrl+P` opens a Prompts Picker (space to toggle, `v` to preview, Enter to apply).
 - The final preface includes `<INSTRUCTIONS>` at the top, and any selected saved prompts are added beneath it as separate `<PROMPT name="...">` blocks.
 
 Layout & Tabs
@@ -241,6 +241,6 @@ L Layout  o Write  c Copy  r Rescan  q Quit
 
 - Use a profile: `aicp copy . --profile docs-only`
 - Add/override instructions at runtime:
-  - Inline: `--prompt "Refactor for clarity; note assumptions."`
-  - From file: `--prompt-file .prompt.txt`
+- Inline: `-i "Refactor for clarity; note assumptions."`
+- From file: `--instructions-file .prompt.txt`
 - The instructions are inserted at the very top and bottom wrapped in `<INSTRUCTIONS>...</INSTRUCTIONS>` tags and count toward the token budget when packing. Any selected saved prompts are appended beneath the initial `<INSTRUCTIONS>` block as `<PROMPT name="...">...</PROMPT>` blocks.
