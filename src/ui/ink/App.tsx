@@ -450,8 +450,18 @@ export function App(props: {cwd: string; promptText?: string; promptsDir?: strin
     } catch {}
   }, [rows, cols, focusPane, state, viewTop, rankTop, focusPrompt]);
 
-  const mouseAllowed = (process.env.AICP_MOUSE !== '0') && !focusPrompt && !editingPrompt;
+  const mouseAllowed = !!props.mouse && !focusPrompt && !editingPrompt;
   useMouse(handleMouse, mouseAllowed);
+  useEffect(() => {
+    if (!mouseAllowed) {
+      try {
+        process.stdout.write('\u001b[?1006l');
+        process.stdout.write('\u001b[?1003l');
+        process.stdout.write('\u001b[?1002l');
+        process.stdout.write('\u001b[?1000l');
+      } catch {}
+    }
+  }, [mouseAllowed]);
 
   if (error) return (
     <Box flexDirection="column">
