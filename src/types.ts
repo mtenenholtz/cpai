@@ -10,6 +10,8 @@ export interface BaseOptions {
   maxBytesPerFile: number;
   model?: string;
   encoding?: string; // e.g., "o200k_base", "cl100k_base"
+  // Optional content filter: include files whose bodies match this regex
+  grep?: string;
 }
 
 export interface ScanOptions extends BaseOptions {}
@@ -21,7 +23,8 @@ export interface CopyOptions extends BaseOptions {
   byDir: boolean; // if we want directory-level report too
   maxTokens?: number; // budget for packed copy
   packOrder: 'small-first' | 'large-first' | 'path';
-  strict: boolean; // enforce maxTokens after rendering (drop trailing files if needed)
+  strict: boolean; // verify maxTokens after rendering; error if exceeded unless truncate=true
+  truncate?: boolean; // when strict and over budget, auto-trim selection instead of error
   codeFences: boolean;
   header?: string;
   // XML wrapping
@@ -41,6 +44,8 @@ export interface FileEntry {
   ext: string;
   skipped?: boolean;
   reason?: string;
+  // When a grep pattern is provided, indicates whether the file body matched
+  grepMatched?: boolean;
 }
 
 export interface ScanResult {

@@ -44,6 +44,7 @@ export async function scan(options: ScanOptions): Promise<ScanResult> {
     maxBytesPerFile,
     model,
     encoding,
+    grep,
   } = options;
 
   // .cpaiignore is handled below by re-running globby with extra ignores
@@ -101,6 +102,12 @@ export async function scan(options: ScanOptions): Promise<ScanResult> {
   }
 
   const enc = await ensureEncoder(model, encoding);
+  let grepRe: RegExp | null = null;
+  if (grep && typeof grep === 'string' && grep.length > 0) {
+    try {
+      grepRe = new RegExp(grep);
+    } catch {}
+  }
 
   const files: FileEntry[] = [];
   let totalTokens = 0;
@@ -145,6 +152,7 @@ export async function scan(options: ScanOptions): Promise<ScanResult> {
 
     const lines = content.split(/\r?\n/).length;
     const tokens = enc.encode(content).length;
+    const grepMatched = grepRe ? grepRe.test(content) : undefined;
 
     files.push({
       absPath: abs,
@@ -153,6 +161,7 @@ export async function scan(options: ScanOptions): Promise<ScanResult> {
       lines,
       tokens,
       ext,
+      grepMatched,
     });
 
     totalTokens += tokens;
@@ -190,6 +199,7 @@ export async function scanConcurrent(
     maxBytesPerFile,
     model,
     encoding,
+    grep,
   } = options;
 
   const concurrency = Math.max(1, Math.min(64, extra?.concurrency ?? 16));
@@ -249,6 +259,12 @@ export async function scanConcurrent(
   onProgress?.(0, total);
 
   const enc = await ensureEncoder(model, encoding);
+  let grepRe: RegExp | null = null;
+  if (grep && typeof grep === 'string' && grep.length > 0) {
+    try {
+      grepRe = new RegExp(grep);
+    } catch {}
+  }
 
   const results: FileEntry[] = new Array(total);
   let done = 0;
@@ -287,7 +303,8 @@ export async function scanConcurrent(
       } else {
         const lines = content.split(/\r?\n/).length;
         const tokens = enc.encode(content).length;
-        results[i] = { absPath: abs, relPath: relPosix, bytes, lines, tokens, ext };
+        const grepMatched = grepRe ? grepRe.test(content) : undefined;
+        results[i] = { absPath: abs, relPath: relPosix, bytes, lines, tokens, ext, grepMatched };
       }
     }
     done++;

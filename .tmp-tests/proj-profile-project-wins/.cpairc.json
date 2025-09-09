@@ -1,0 +1,7 @@
+{
+  "profiles": {
+    "review": {
+      "include": ["from-rc-prof"]
+    }
+  }
+}

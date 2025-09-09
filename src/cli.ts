@@ -4,8 +4,10 @@ import chalk from 'chalk';
 import clipboard from 'clipboardy';
 import path from 'node:path';
 import fs from 'node:fs/promises';
+import pkg from '../package.json' with { type: 'json' };
 import {
   loadAicpConfig,
+  findProfile,
   writeDefaultAicpConfig,
   writeDefaultGlobalAicpConfig,
   DEFAULT_CONFIG,
@@ -104,7 +106,7 @@ program
   .description(
     'Bulk copy code/files to paste into an LLM, with token inspection & include/exclude.',
   )
-  .version('0.1.0');
+  .version(pkg.version);
 
 program
   .command('init')
@@ -128,6 +130,7 @@ program
   .option('-C, --cwd <dir>', 'working directory (defaults to dir)', '')
   .option('--include <globs...>', 'include globs (comma or space separated)', '')
   .option('--exclude <globs...>', 'exclude globs (comma or space separated)', '')
+  .option('--grep <pattern>', 'only include files whose contents match this regex')
   .option('--no-gitignore', 'do not respect .gitignore')
   .option('--no-cpaiignore', 'do not respect .cpaiignore')
   .option('--hidden', 'include dotfiles', false)
@@ -144,6 +147,8 @@ program
   )
   .option('--by-dir', 'print a directory-level summary', false)
   .option('--json', 'output JSON instead of a table', false)
+  .option('--sort <field>', 'sort table by: bytes | tokens', '')
+  .option('--desc', 'sort descending (with --sort)', false)
   .action(async (dirArg, opts) => {
     const cwd = path.resolve(process.cwd(), opts.cwd || dirArg || '.');
     const fileCfg = await loadAicpConfig(cwd);
@@ -163,6 +168,7 @@ program
         ),
         model: opts.model || fileCfg.model || DEFAULT_CONFIG.model,
         encoding: opts.encoding || fileCfg.encoding || DEFAULT_CONFIG.encoding,
+        grep: opts.grep || undefined,
       },
       {},
     );
@@ -171,13 +177,48 @@ program
     const result = await scan(cfg);
 
     if (opts.json) {
+      const grepProvided = typeof opts.grep === 'string' && opts.grep.length > 0;
+      const filesList = grepProvided
+        ? result.files.filter((f) => !f.skipped && f.grepMatched)
+        : result.files;
+      const totals = (() => {
+        if (!grepProvided) {
+          return {
+            tokens: result.totalTokens,
+            bytes: result.totalBytes,
+            lines: result.totalLines,
+            byDir: result.byDir,
+          };
+        }
+        let tTok = 0,
+          tBy = 0,
+          tLn = 0;
+        const m = new Map<
+          string,
+          { tokens: number; bytes: number; files: number; lines: number }
+        >();
+        for (const f of filesList) {
+          if (f.skipped) continue;
+          tTok += f.tokens;
+          tBy += f.bytes;
+          tLn += f.lines;
+          const d = toPosix(path.posix.dirname(f.relPath));
+          const agg = m.get(d) ?? { tokens: 0, bytes: 0, files: 0, lines: 0 };
+          agg.tokens += f.tokens;
+          agg.bytes += f.bytes;
+          agg.files += 1;
+          agg.lines += f.lines;
+          m.set(d, agg);
+        }
+        return { tokens: tTok, bytes: tBy, lines: tLn, byDir: m };
+      })();
       console.log(
         JSON.stringify(
           {
-            totalTokens: result.totalTokens,
-            totalBytes: result.totalBytes,
-            totalLines: result.totalLines,
-            files: result.files.map((f) => ({
+            totalTokens: totals.tokens,
+            totalBytes: totals.bytes,
+            totalLines: totals.lines,
+            files: filesList.map((f) => ({
               path: f.relPath,
               bytes: f.bytes,
               lines: f.lines,
@@ -185,7 +226,7 @@ program
               skipped: !!f.skipped,
               reason: f.reason,
             })),
-            byDir: Object.fromEntries(result.byDir),
+            byDir: Object.fromEntries(totals.byDir),
           },
           null,
           2,
@@ -194,7 +235,11 @@ program
       return;
     }
 
-    const rows = result.files.map((f) => ({
+    const grepProvided = typeof opts.grep === 'string' && opts.grep.length > 0;
+    const filteredFiles = grepProvided
+      ? result.files.filter((f) => !f.skipped && f.grepMatched)
+      : result.files;
+    let rows = filteredFiles.map((f) => ({
       path: f.relPath,
       bytes: f.bytes,
       lines: f.lines,
@@ -203,20 +248,64 @@ program
       reason: f.reason,
     }));
 
+    // Optional sorting for table output
+    const sortField = String(opts.sort || '').toLowerCase();
+    const sortDir = opts.desc ? 'desc' : 'asc';
+    if (sortField === 'bytes') {
+      rows = sortBy(rows, (r) => r.bytes, sortDir);
+    } else if (sortField === 'tokens') {
+      rows = sortBy(rows, (r) => r.tokens, sortDir);
+    }
+
     printScanTable(rows);
+    const totals = (() => {
+      if (!grepProvided) {
+        return {
+          tokens: result.totalTokens,
+          lines: result.totalLines,
+          bytes: result.totalBytes,
+        };
+      }
+      let tTok = 0,
+        tBy = 0,
+        tLn = 0;
+      for (const f of filteredFiles) {
+        if (f.skipped) continue;
+        tTok += f.tokens;
+        tBy += f.bytes;
+        tLn += f.lines;
+      }
+      return { tokens: tTok, lines: tLn, bytes: tBy };
+    })();
     console.log(
       '\n' +
         chalk.bold('TOTAL') +
-        `  files=${rows.length}  tokens=${chalk.cyan(result.totalTokens)}  lines=${result.totalLines}  bytes=${humanBytes(
-          result.totalBytes,
+        `  files=${rows.length}  tokens=${chalk.cyan(totals.tokens)}  lines=${totals.lines}  bytes=${humanBytes(
+          totals.bytes,
         )}`,
     );
 
     if (opts.byDir) {
       // Top directories by tokens (first 10)
-      const byDir = [...result.byDir.entries()]
-        .sort((a, b) => b[1].tokens - a[1].tokens)
-        .slice(0, 10);
+      const byDirEntries = (() => {
+        if (!grepProvided) return [...result.byDir.entries()];
+        const m = new Map<
+          string,
+          { tokens: number; bytes: number; files: number; lines: number }
+        >();
+        for (const f of filteredFiles) {
+          if (f.skipped) continue;
+          const d = toPosix(path.posix.dirname(f.relPath));
+          const agg = m.get(d) ?? { tokens: 0, bytes: 0, files: 0, lines: 0 };
+          agg.tokens += f.tokens;
+          agg.bytes += f.bytes;
+          agg.files += 1;
+          agg.lines += f.lines;
+          m.set(d, agg);
+        }
+        return [...m.entries()];
+      })();
+      const byDir = byDirEntries.sort((a, b) => b[1].tokens - a[1].tokens).slice(0, 10);
       if (byDir.length) {
         console.log('\n' + chalk.bold('Top directories by tokens:'));
         for (const [d, agg] of byDir) {
@@ -239,6 +328,7 @@ program
   .option('--no-gitignore', 'do not respect .gitignore')
   .option('--no-cpaiignore', 'do not respect .cpaiignore')
   .option('--hidden', 'include dotfiles', false)
+  .option('--grep <pattern>', 'only include files whose contents match this regex')
   .option(
     '--max-bytes-per-file <n>',
     'skip files larger than this',
@@ -253,7 +343,12 @@ program
   .option('--by-dir', 'print a directory-level summary to stderr', false)
   .option('--max-tokens <n>', 'token budget; pack files to fit', '')
   .option('--pack-order <order>', 'small-first | large-first | path', 'small-first')
-  .option('--strict', 'enforce the max-tokens after rendering', true)
+  .option(
+    '--strict',
+    'verify token budget after rendering; error if exceeded (use --truncate to auto-trim)',
+    true,
+  )
+  .option('--truncate', 'auto-trim selection to fit max-tokens instead of erroring', false)
   .option('--no-code-fences', 'omit ``` fences in markdown', false)
   .option('--header <text>', 'prepend a header')
   .option('--no-tags', 'Do not wrap each file with <FILE_n> separators (default on)')
@@ -266,7 +361,7 @@ program
 
     // Load profile if provided
     const profileName: string | undefined = opts.profile || undefined;
-    const profile = profileName && fileCfg.profiles ? fileCfg.profiles[profileName] : undefined;
+    const profile = profileName ? await findProfile(cwd, profileName) : undefined;
 
     async function readInstructionsText(): Promise<string | undefined> {
       // Read only current flags and config keys (no legacy support)
@@ -370,6 +465,7 @@ program
       model: opts.model || profile?.model || fileCfg.model || DEFAULT_CONFIG.model,
       encoding: opts.encoding || profile?.encoding || fileCfg.encoding || DEFAULT_CONFIG.encoding,
       format: (opts.format || profile?.format || fileCfg.format || DEFAULT_CONFIG.format) as any,
+      grep: opts.grep || undefined,
       outFile: opts.out || undefined,
       // Default: copy to clipboard unless explicitly disabled with --no-clip
       toClipboard: opts.clip !== false,
@@ -377,6 +473,10 @@ program
       maxTokens: opts.maxTokens ? Number(opts.maxTokens) : undefined,
       packOrder: (opts.packOrder || (profile?.packOrder ?? 'small-first')) as any,
       strict: opts.strict !== undefined ? !!opts.strict : (profile?.strict ?? true),
+      truncate:
+        opts.truncate !== undefined
+          ? !!opts.truncate
+          : (profile?.truncate ?? (fileCfg as any).truncate ?? false),
       codeFences: opts.codeFences !== false,
       header: opts.header || undefined,
       // XML wrapping is no longer controllable via CLI flag; profiles may still enable it
@@ -389,28 +489,50 @@ program
     await ensureEncoder(cfg.model, cfg.encoding);
 
     const result = await scan(cfg);
-    const eligible = result.files.filter((f) => !f.skipped);
+    let eligible = result.files.filter((f) => !f.skipped);
+    if (cfg.grep && cfg.grep.length > 0) {
+      eligible = eligible.filter((f) => f.grepMatched);
+    }
 
     // Render output (JSON bypasses packing/rendering; others use packing/formatting)
     let text: string;
     let selected = eligible;
     let tokens: number | undefined = undefined;
-    if (cfg.format === 'json') {
-      text = renderJson(eligible);
-    } else {
-      const packed = await packFilesToBudget(eligible, cfg);
-      selected = packed.selected;
-      tokens = packed.tokens;
-      if (packed.rendered !== undefined) {
-        text = packed.rendered;
+    try {
+      if (cfg.format === 'json') {
+        text = renderJson(eligible);
       } else {
-        const body = cfg.xmlWrap
-          ? await formatXml(selected, cfg)
-          : cfg.tagsWrap
-            ? await formatTags(selected, cfg)
-            : await formatOutput(selected, cfg);
-        text = wrapWithPrompt(body, cfg.promptText);
+        const packed = await packFilesToBudget(eligible, cfg);
+        selected = packed.selected;
+        tokens = packed.tokens;
+        if (packed.rendered !== undefined) {
+          text = packed.rendered;
+        } else {
+          const body = cfg.xmlWrap
+            ? await formatXml(selected, cfg)
+            : cfg.tagsWrap
+              ? await formatTags(selected, cfg)
+              : await formatOutput(selected, cfg);
+          text = wrapWithPrompt(body, cfg.promptText);
+        }
       }
+    } catch (e: any) {
+      // Friendly error for token budget overflow
+      const attempted = e?.attemptedTokens ?? undefined;
+      const budget = e?.maxTokens ?? cfg.maxTokens ?? undefined;
+      const over = attempted !== undefined && budget !== undefined ? attempted - budget : undefined;
+      const parts = [
+        'Failed to compose within token budget.',
+        attempted !== undefined && budget !== undefined
+          ? `Attempted ${attempted} tokens vs budget ${budget}${
+              over !== undefined ? ` (over by ${over})` : ''
+            }.`
+          : undefined,
+        'Use --truncate to auto-trim, increase --max-tokens, or adjust --pack-order.',
+      ].filter(Boolean);
+      console.error(chalk.red(parts.join(' ')));
+      process.exitCode = 1;
+      return;
     }
 
     // Write to file if requested
@@ -465,6 +587,7 @@ program
   .option('-C, --cwd <dir>', 'working directory (defaults to dir)', '')
   .option('-i, --instructions <text>', 'prefill ad-hoc instructions', '')
   .option('--instructions-file <path>', 'prefill instructions from a file')
+  .option('--grep <pattern>', 'preselect only files whose contents match this regex')
   .option(
     '--prompts-dir <dir>',
     'directory of saved prompts to pick (default: ./prompts or ./.cpai/prompts)',
@@ -502,6 +625,7 @@ program
       await adapter.run({
         cwd,
         promptText,
+        grep: opts.grep ? String(opts.grep) : undefined,
         promptsDir: opts.promptsDir ? String(opts.promptsDir) : undefined,
         openPromptPicker: !!opts.pickPrompts,
         mouse: mouseFlag,

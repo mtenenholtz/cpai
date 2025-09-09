@@ -18,6 +18,7 @@ export type State = {
   maxBytesPerFile: number;
   model?: string;
   encoding?: string;
+  grep?: string;
   // copy options
   maxTokens?: number;
   packOrder: 'small-first' | 'large-first' | 'path';
@@ -60,6 +61,7 @@ export function makeDefaultState(cwd: string, fileCfg: any): State {
     maxBytesPerFile: fileCfg.maxBytesPerFile ?? DEFAULT_CONFIG.maxBytesPerFile,
     model: fileCfg.model ?? DEFAULT_CONFIG.model,
     encoding: fileCfg.encoding ?? DEFAULT_CONFIG.encoding,
+    grep: undefined,
     maxTokens: undefined,
     packOrder: 'small-first',
     strict: true,

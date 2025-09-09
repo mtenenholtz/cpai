@@ -56,6 +56,38 @@ Note: After making changes that require compilation (TypeScript or build‑affec
 - PRs must include: clear description, rationale, CLI/TUI examples (and screenshots for TUI changes), updated docs (`README.md`/help text), and tests if behavior changes.
 - Keep changes focused; do not commit built artifacts in `dist/`.
 
+## Git Branching Strategy
+
+- `main` — stable, protected, and release‑ready. No direct commits. Only merge via PRs with all checks green. Tag releases from `main`.
+- `dev` — integration branch for ongoing work. Branch feature/fix work from `dev` and open PRs back into `dev`. Keep `dev` green.
+- Feature branches — name by type and scope, e.g. `feat/<scope>-<short-desc>`, `fix/<scope>-<short-desc>`, `chore/…`, `docs/…`, `refactor/…`, `test/…`. Branch from `dev`; delete after merge.
+- Hotfixes — for urgent production fixes: branch from `main` as `hotfix/<short-desc>`, open PR to `main`, and after merge, immediately back‑merge `main` into `dev` (or cherry‑pick) to keep them in sync.
+- Releases — when `dev` is ready, open a PR from `dev` to `main`. Use the PR description to summarize notable changes. After merge, create a tag if releasing.
+
+Recommended local flow:
+
+```bash
+# start new work from latest dev
+git switch dev && git pull --ff-only
+git switch -c feat/<scope>-<short-desc>
+
+# keep branch current (rebase preferred)
+git fetch origin && git rebase origin/dev
+
+# open PR to dev when ready
+
+# hotfix flow (from main)
+git switch main && git pull --ff-only
+git switch -c hotfix/<short-desc>
+# open PR to main, then back-merge main -> dev after merge
+```
+
+Rules of thumb:
+
+- Never push directly to `main`. Prefer PRs for all changes.
+- Verify `pnpm run check` passes before opening or merging any PR.
+- Prefer small, focused PRs into `dev`; avoid long‑lived branches.
+
 ## Security & Configuration Tips
 
 - Avoid leaking secrets: review `--include/--exclude`, `.gitignore`, and `.cpaiignore`. Run `cpai scan` before `cpai copy`.

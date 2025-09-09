@@ -8,7 +8,7 @@ Launch:
  cpai tui .
 ```
 
-Mouse is off by default. Enable it with `--mouse` or in config (`mouse: true`).
+Mouse is off by default. Enable it with `--mouse` or in config (`mouse: true`). You can prefill instructions with `-i/--instructions` or `--instructions-file <path>`, and preselect files by content with `--grep <pattern>`.
 
 ## Layout
 
@@ -46,12 +46,14 @@ Prompts:
 Rankings:
 
 - `e`: show full name/path of the selected row in a small overlay (press `e`/`E`/`Esc` to close)
+- `Tab`: switch between Files ↔ Folders columns
   The overlay displays either the full file path or the folder path with token totals.
 - Mouse (when enabled): click to select; wheel to scroll
 
 Actions:
 
 - `c`: copy the rendered bundle to clipboard (OSC52 fallback if system clipboard fails)
+- `x`: emit the composed bundle to stdout and exit (useful for piping)
 - `Ctrl+R`: rescan (progress shown in status)
 - `q` / `Ctrl+C`: quit
 
@@ -59,7 +61,7 @@ Actions:
 
 - Sources: project (`./.cpai/prompts` or `./prompts`) and global (`~/.cpai/prompts`)
 - In pickers, global prompts are labeled `(global)`
-- Selected prompts are prepended and appended as sections when composing the final prompt
+- Selected prompts are added at the top as `<PROMPT name="...">…</PROMPT>` blocks (only the `<INSTRUCTIONS>` block is duplicated at the bottom)
 
 ## Instructions Editor
 
@@ -80,4 +82,4 @@ If `mouse: false`, the app explicitly disables terminal mouse tracking on mount 
 
 ## Status line
 
-- Shows the current token estimate of included files, active pane info, and any short status (e.g., “Rescanning…” or copy feedback)
+- Shows the current token estimate of included files (including wrappers/prompts), active pane info, and any short status (e.g., “Rescanning…” or copy feedback)

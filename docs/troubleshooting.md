@@ -38,7 +38,7 @@ Then retry `cpai tui .`. (The Ink adapter dynamically imports `ink` and `react`.
 
 ## Token budget doesn’t fit
 
-- `--max-tokens` packs by estimate; with `--strict` (default), CPAI re‑renders and trims from the end to fit exactly.
+- `--max-tokens` packs by estimate; with `--strict` (default), CPAI re‑renders and verifies the final text fits. If it’s over budget, the CLI errors unless `--truncate` is set, in which case it drops trailing files until it fits.
 - Try `--pack-order small-first` or reduce scope with globs.
 
 ## Mouse isn’t working in TUI

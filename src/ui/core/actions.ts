@@ -31,6 +31,7 @@ export async function rescan(
     maxBytesPerFile: state.maxBytesPerFile,
     model: state.model,
     encoding: state.encoding,
+    grep: state.grep,
   };
   const result = await scanConcurrent(opts, { concurrency: 16, onProgress, signal });
   const list = result.files.filter((f) => !f.skipped);
@@ -87,6 +88,12 @@ export async function rescan(
       }
     } catch {}
   }
+  // Apply grep preselection: any non-matching files are auto-deselected (still visible)
+  if (state.grep && state.grep.length > 0) {
+    for (const f of state.files) {
+      if (f.grepMatched !== true) auto.add(f.relPath);
+    }
+  }
   state.autoDeselected = auto;
 }
 
@@ -132,6 +139,8 @@ export async function renderPackedText(
     maxTokens: state.maxTokens,
     packOrder: state.packOrder,
     strict: state.strict,
+    // In the TUI we prefer a smooth experience: auto-trim to fit if needed.
+    truncate: true,
     codeFences: true,
     header: undefined,
     xmlWrap: state.xmlWrap,

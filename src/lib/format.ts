@@ -1,4 +1,5 @@
 import fs from 'node:fs/promises';
+import pkg from '../../package.json' with { type: 'json' };
 import path from 'node:path';
 import { countTokens, ensureEncoder } from './tokenizer.js';
 import { extnameLower, toPosix } from './utils.js';
@@ -146,29 +147,46 @@ export async function packFilesToBudget(
     const rendered = wrapWithPrompt(body, opts.promptText);
     const tokens = await countTokens(rendered);
     if (tokens > (opts.maxTokens ?? Number.MAX_SAFE_INTEGER)) {
-      // Trim from the end until under budget
-      const trimmed = [...selected];
-      while (
-        trimmed.length &&
-        (await (async () => {
-          const body2 = await (opts.xmlWrap
-            ? formatXml(trimmed, opts)
-            : opts.tagsWrap
-              ? formatTags(trimmed, opts)
-              : formatOutput(trimmed, opts));
-          return countTokens(wrapWithPrompt(body2, opts.promptText));
-        })()) > opts.maxTokens!
-      ) {
-        trimmed.pop();
+      // If truncation is explicitly allowed, drop trailing files until under budget.
+      if (opts.truncate) {
+        const trimmed = [...selected];
+        while (
+          trimmed.length &&
+          (await (async () => {
+            const body2 = await (opts.xmlWrap
+              ? formatXml(trimmed, opts)
+              : opts.tagsWrap
+                ? formatTags(trimmed, opts)
+                : formatOutput(trimmed, opts));
+            return countTokens(wrapWithPrompt(body2, opts.promptText));
+          })()) > opts.maxTokens!
+        ) {
+          trimmed.pop();
+        }
+        const finalBody = await (opts.xmlWrap
+          ? formatXml(trimmed, opts)
+          : opts.tagsWrap
+            ? formatTags(trimmed, opts)
+            : formatOutput(trimmed, opts));
+        const finalRendered = wrapWithPrompt(finalBody, opts.promptText);
+        const finalTokens = await countTokens(finalRendered);
+        return { selected: trimmed, rendered: finalRendered, tokens: finalTokens };
       }
-      const finalBody = await (opts.xmlWrap
-        ? formatXml(trimmed, opts)
-        : opts.tagsWrap
-          ? formatTags(trimmed, opts)
-          : formatOutput(trimmed, opts));
-      const finalRendered = wrapWithPrompt(finalBody, opts.promptText);
-      const finalTokens = await countTokens(finalRendered);
-      return { selected: trimmed, rendered: finalRendered, tokens: finalTokens };
+
+      // Otherwise, fail fast with a descriptive error so the caller can present it.
+      const overBy = tokens - (opts.maxTokens ?? 0);
+      const attempted = tokens;
+      const budget = opts.maxTokens ?? 0;
+      const err = new Error(
+        `Token budget exceeded: attempted ${attempted} tokens, budget ${budget} (over by ${overBy}). ` +
+          `Use --truncate to auto-trim, increase --max-tokens, or adjust --pack-order.`,
+      );
+      // Attach some detail fields for programmatic handling if desired
+      (err as any).code = 'TOKEN_BUDGET_EXCEEDED';
+      (err as any).attemptedTokens = attempted;
+      (err as any).maxTokens = budget;
+      (err as any).selectedCount = selected.length;
+      throw err;
     }
     return { selected, rendered, tokens };
   }
@@ -279,7 +297,7 @@ function renderTreeAscii(node: DirNode, prefix = ''): string[] {
 
 export async function formatXml(entries: FileEntry[], opts: CopyOptions): Promise<string> {
   const lines: string[] = [];
-  lines.push(`<cpai version="0.1.0">`);
+  lines.push(`<cpai version="${pkg.version}">`);
   if (opts.header) {
     lines.push(`  <header><![CDATA[${encodeCdata(opts.header)}]]></header>`);
   }

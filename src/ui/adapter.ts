@@ -2,6 +2,7 @@ export interface TuiAdapter {
   run(opts: {
     cwd: string;
     promptText?: string;
+    grep?: string;
     promptsDir?: string;
     openPromptPicker?: boolean;
     mouse?: boolean;
