@@ -1,0 +1,14 @@
+{
+  "name": "x",
+  "version": "0.0.0",
+  "type": "module",
+  "cpai": {
+    "profiles": {
+      "review": {
+        "include": [
+          "from-pkg-prof"
+        ]
+      }
+    }
+  }
+}

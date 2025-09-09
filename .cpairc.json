@@ -1,0 +1,20 @@
+{
+  "include": ["**/*"],
+  "exclude": [
+    "**/{node_modules,dist,build,.git,.next,.cache,coverage}/**",
+    "**/.cpaiignore",
+    "**/*.{png,jpg,jpeg,gif,webp,svg,ico,bmp,pdf,zip,tgz,gz,rar,7z,mp3,mp4,ogg,webm,avi,mov,exe,dll,dylib,so,wasm,woff,woff2,ttf,eot}",
+    "**/*.min.{js,css}",
+    "**/*.lock",
+    "**/*.log"
+  ],
+  "useGitignore": true,
+  "useCpaiIgnore": true,
+  "hidden": false,
+  "maxBytesPerFile": 512000,
+  "model": "gpt-4o-mini",
+  "encoding": "o200k_base",
+  "format": "markdown",
+  "truncate": false,
+  "mouse": false
+}

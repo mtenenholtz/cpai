@@ -33,7 +33,7 @@ export function InstructionsEditor(props: {
     () => (splitLines(props.initialValue).slice(-1)[0] ?? '').length,
   );
   const [scrollTop, setScrollTop] = useState(0);
-  const [hScroll, setHScroll] = useState(0);
+  // Soft-wrap mode: no horizontal scroll
   const [tokens, setTokens] = useState(0);
 
   // Layout math
@@ -49,6 +49,77 @@ export function InstructionsEditor(props: {
     props.width - 2 /*borders*/ - lineNumW - gutterW - 2 /*inner padding*/,
   );
 
+  // Word-aware soft-wrapped segments for rendering
+  type Seg = { lineIdx: number; start: number; end: number; text: string };
+  const memo = useMemo(() => {
+    const lineSegments: Seg[][] = [];
+    const segments: Seg[] = [];
+    const lineOffsets: number[] = [];
+    let offset = 0;
+    const totalLines = lines.length ? lines.length : 1;
+    for (let i = 0; i < totalLines; i++) {
+      const s = lines.length ? (lines[i] ?? '') : '';
+      const segs: Seg[] = [];
+      if (s.length === 0) {
+        segs.push({ lineIdx: i, start: 0, end: 0, text: '' });
+      } else {
+        let pos = 0;
+        while (pos < s.length) {
+          const remaining = s.length - pos;
+          if (remaining <= contentW) {
+            segs.push({ lineIdx: i, start: pos, end: s.length, text: s.slice(pos) });
+            break;
+          }
+          const limit = pos + contentW;
+          const slice = s.slice(pos, limit);
+          let breakAt = -1;
+          for (let j = slice.length - 1; j >= 0; j--) {
+            if (/\s/.test(slice[j])) {
+              breakAt = pos + j; // wrap at last whitespace within width
+              break;
+            }
+          }
+          if (breakAt > pos) {
+            segs.push({ lineIdx: i, start: pos, end: breakAt, text: s.slice(pos, breakAt) });
+            // Skip whitespace so next visual line doesn't start indented
+            pos = breakAt;
+            while (pos < s.length && /\s/.test(s[pos]!)) pos++;
+          } else {
+            segs.push({ lineIdx: i, start: pos, end: limit, text: s.slice(pos, limit) });
+            pos = limit;
+          }
+        }
+      }
+      lineSegments.push(segs);
+      lineOffsets.push(offset);
+      offset += segs.length;
+      segments.push(...segs);
+    }
+    return { lineSegments, segments, lineOffsets };
+  }, [lines, contentW]);
+
+  // Map logical cursor (row,col) to display row and x within wrapped segment
+  const cursorDisplay = useMemo(() => {
+    const lineSegs = memo.lineSegments[row] ?? [{ lineIdx: row, start: 0, end: 0, text: '' }];
+    let chosen = -1;
+    for (let i = 0; i < lineSegs.length; i++) {
+      const seg = lineSegs[i]!;
+      if (col < seg.start) {
+        chosen = i; // landed in whitespace gap before this seg -> snap to this seg
+        break;
+      }
+      if (col >= seg.start && col < seg.end) {
+        chosen = i; // inside this seg
+        break;
+      }
+    }
+    const segIdx = chosen === -1 ? Math.max(0, lineSegs.length - 1) : chosen;
+    const seg = lineSegs[segIdx]!;
+    const x = clamp(col - seg.start, 0, Math.max(0, seg.end - seg.start));
+    const dispRow = (memo.lineOffsets[row] ?? 0) + segIdx;
+    return { dispRow, x };
+  }, [memo, row, col, contentW]);
+
   // Keep cursor in bounds as content changes
   useEffect(() => {
     const L = lines.length ? lines : [''];
@@ -58,21 +129,16 @@ export function InstructionsEditor(props: {
     if (cc !== col) setCol(cc);
   }, [lines, row, col]);
 
-  // Maintain vertical scroll so cursor is visible
+  // Maintain vertical scroll (in display rows) so cursor is visible
   useEffect(() => {
     const margin = 1;
-    if (row < scrollTop + margin) setScrollTop(Math.max(0, row - margin));
-    else if (row >= scrollTop + innerH - margin)
-      setScrollTop(Math.max(0, row - innerH + 1 + margin));
-  }, [row, innerH, scrollTop]);
+    const cur = cursorDisplay.dispRow;
+    if (cur < scrollTop + margin) setScrollTop(Math.max(0, cur - margin));
+    else if (cur >= scrollTop + innerH - margin)
+      setScrollTop(Math.max(0, cur - innerH + 1 + margin));
+  }, [cursorDisplay, innerH, scrollTop]);
 
-  // Maintain horizontal scroll so cursor is visible
-  useEffect(() => {
-    const margin = 2;
-    if (col < hScroll + margin) setHScroll(Math.max(0, col - margin));
-    else if (col >= hScroll + contentW - margin)
-      setHScroll(Math.max(0, col - contentW + 1 + margin));
-  }, [col, hScroll, contentW]);
+  // Horizontal scroll removed; soft-wrapping handles visibility
 
   // Token counter (debounced)
   useEffect(() => {
@@ -292,45 +358,54 @@ export function InstructionsEditor(props: {
 
   const visible = useMemo(() => {
     const start = scrollTop;
-    const end = Math.min(lines.length, start + innerH);
-    return lines.slice(start, end);
-  }, [lines, scrollTop, innerH]);
+    const end = Math.min(memo.segments.length, start + innerH);
+    return memo.segments.slice(start, end);
+  }, [memo, scrollTop, innerH]);
 
-  function renderLine(idx: number, text: string) {
-    const isCursor = scrollTop + idx === row;
-    const ln = String(scrollTop + idx + 1).padStart(lineNumW, ' ');
-    const view = text.slice(hScroll, hScroll + contentW);
-    const cursorX = clamp(col - hScroll, 0, contentW);
+  function renderLine(idx: number, seg: Seg) {
+    const globalIdx = scrollTop + idx;
+    const isCursor = globalIdx === cursorDisplay.dispRow;
+    const ln =
+      seg.start === 0 ? String(seg.lineIdx + 1).padStart(lineNumW, ' ') : ' '.repeat(lineNumW);
+    const view = seg.text;
+    const cursorX = Math.min(clamp(cursorDisplay.x, 0, contentW), Math.max(0, contentW - 1));
+    const gutterWidth = lineNumW + gutterW;
     if (!isCursor) {
       return (
-        <Text>
-          <Text dimColor>{ln}</Text>
-          <Text> </Text>
+        <Box>
+          <Box width={gutterWidth}>
+            <Text dimColor>{ln}</Text>
+            <Text> </Text>
+          </Box>
           <Text>{view}</Text>
-        </Text>
+        </Box>
       );
     }
     const pre = view.slice(0, cursorX);
     const ch = view[cursorX] ?? ' ';
-    const post = view.slice(cursorX + 1);
+    const post = view.slice(Math.min(cursorX + 1, view.length));
     return (
-      <Text>
-        <Text dimColor>{ln}</Text>
-        <Text> </Text>
+      <Box>
+        <Box width={gutterWidth}>
+          <Text dimColor>{ln}</Text>
+          <Text> </Text>
+        </Box>
         <Text>{pre}</Text>
         <Text inverse>{ch}</Text>
         <Text>{post}</Text>
-      </Text>
+      </Box>
     );
   }
 
   const help =
     'Esc save • Ctrl+Q cancel • Shift+W/B word fwd/back • Ctrl+K kill-eol • Ctrl+W del word • Arrows move • Enter newline • Tab=2 spaces';
+  const helpView = help.length > contentW ? help.slice(0, contentW) : help;
 
   return (
     <Box
       borderStyle="round"
       borderColor="cyan"
+      width={props.width}
       paddingX={1}
       paddingY={0}
       flexDirection="column"
@@ -341,17 +416,13 @@ export function InstructionsEditor(props: {
       </Box>
       <Box flexDirection="column" height={innerH}>
         {visible.length ? (
-          visible.map((t, i) => (
-            <Box key={i}>
-              <Text>{renderLine(i, t)}</Text>
-            </Box>
-          ))
+          visible.map((seg, i) => <Box key={i}>{renderLine(i, seg)}</Box>)
         ) : (
           <Text dimColor>(empty)</Text>
         )}
       </Box>
       <Box height={1}>
-        <Text dimColor>{help}</Text>
+        <Text dimColor>{helpView}</Text>
       </Box>
     </Box>
   );

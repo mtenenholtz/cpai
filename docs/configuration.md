@@ -5,7 +5,7 @@ CPAI supports both project-level and global configuration. All formats are JSON.
 - Project: `./.cpairc.json` or `package.json#cpai`
 - Global: `~/.cpai/config.json` (created via `cpai init --global`)
 
-Precedence: CLI flags > project config > global config > defaults.
+Precedence: CLI flags > profile > project `.cpairc.json` > project `package.json#cpai` > global `~/.cpai/config.json` > defaults.
 
 ## Paths
 
@@ -28,9 +28,9 @@ Precedence: CLI flags > project config > global config > defaults.
   "format": "markdown", // markdown | json (CLI copy)
   "mouse": false, // TUI mouse support (also overridable via --mouse)
 
-  // Optional prompt to append/prepend in copy
-  "prompt": "...",
-  "promptFile": "./prompts/use-this.md",
+  // Optional instructions to add at top (also duplicated at bottom in CLI copy)
+  "instructions": "...",
+  "instructionsFile": "./prompts/use-this.md",
 
   // Profiles (used by cpai copy -P <name>)
   "profiles": {
@@ -48,6 +48,10 @@ Precedence: CLI flags > project config > global config > defaults.
 
 Profiles let you save named presets for `cpai copy`. All fields merge over base config.
 
+The TUI also honors `instructions` / `instructionsFile` as defaults, unless overridden by `-i/--instructions` or `--instructions-file` at launch.
+
+Profile lookup order (when `-P/--profile` is used): project `.cpairc.json#profiles` → project `package.json#cpai.profiles` → global `~/.cpai/config.json#profiles`.
+
 ```bash
  cpai copy . -P release --max-tokens 120000
 ```
@@ -56,7 +60,7 @@ Profiles let you save named presets for `cpai copy`. All fields merge over base 
 
 ```bash
  cpai init --global
- # edit ~/.cpai/config.json
+# edit ~/.cpai/config.json
 ```
 
 ## Mouse

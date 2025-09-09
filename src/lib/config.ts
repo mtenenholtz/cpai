@@ -12,6 +12,8 @@ export type AicpConfig = {
   model?: string;
   encoding?: string;
   format?: 'markdown' | 'json';
+  // When true, allow auto-truncating to fit max-tokens (CLI copy)
+  truncate?: boolean;
   // UI toggles
   mouse?: boolean;
   // Optional default instructions included at top and bottom
@@ -44,6 +46,7 @@ export type AicpProfile = {
   codeFences?: boolean;
   packOrder?: 'small-first' | 'large-first' | 'path';
   strict?: boolean;
+  truncate?: boolean;
   mouse?: boolean;
 };
 
@@ -67,6 +70,7 @@ export const DEFAULT_CONFIG: Required<
   model: 'gpt-4o-mini',
   encoding: 'o200k_base',
   format: 'markdown',
+  truncate: false,
   mouse: false,
 };
 
@@ -78,7 +82,7 @@ export async function loadAicpConfig(cwd: string): Promise<AicpConfig> {
 
   let config: AicpConfig = {};
 
-  // Global (~/.cpai/config.json or ~/.cpai/.cpairc.json)
+  // 1) Global (~/.cpai/config.json or ~/.cpai/.cpairc.json)
   const globalCandidates = [
     cpaiHome && path.join(cpaiHome, 'config.json'),
     cpaiHome && path.join(cpaiHome, '.cpairc.json'),
@@ -90,17 +94,17 @@ export async function loadAicpConfig(cwd: string): Promise<AicpConfig> {
     } catch {}
   }
 
-  // Project .cpairc.json
-  try {
-    const raw = await fs.readFile(configPathNew, 'utf8');
-    config = { ...config, ...JSON.parse(raw) };
-  } catch {}
-
-  // package.json#cpai
+  // 2) Project package.json#cpai
   try {
     const raw = await fs.readFile(pkgPath, 'utf8');
     const pkg = JSON.parse(raw);
     if (pkg.cpai && typeof pkg.cpai === 'object') config = { ...config, ...pkg.cpai };
+  } catch {}
+
+  // 3) Project .cpairc.json (highest among files)
+  try {
+    const raw = await fs.readFile(configPathNew, 'utf8');
+    config = { ...config, ...JSON.parse(raw) };
   } catch {}
 
   return config;
@@ -122,4 +126,47 @@ export async function writeDefaultGlobalAicpConfig() {
   const content = JSON.stringify(DEFAULT_CONFIG, null, 2) + '\n';
   await fs.writeFile(p, content, 'utf8');
   return p;
+}
+
+/**
+ * Locate a named profile by searching in this order:
+ *  1) Project .cpairc.json#profiles
+ *  2) Project package.json#cpai.profiles
+ *  3) Global ~/.cpai/config.json or ~/.cpai/.cpairc.json #profiles
+ * Project wins over global; if not found in project, fall back to global.
+ */
+export async function findProfile(cwd: string, name: string): Promise<AicpProfile | undefined> {
+  const configPathNew = path.join(cwd, '.cpairc.json');
+  const pkgPath = path.join(cwd, 'package.json');
+  // 1) Project .cpairc.json
+  try {
+    const raw = await fs.readFile(configPathNew, 'utf8');
+    const cfg = JSON.parse(raw);
+    if (cfg && cfg.profiles && typeof cfg.profiles === 'object' && cfg.profiles[name]) {
+      return cfg.profiles[name] as AicpProfile;
+    }
+  } catch {}
+  // 2) Project package.json#cpai.profiles
+  try {
+    const raw = await fs.readFile(pkgPath, 'utf8');
+    const pkg = JSON.parse(raw);
+    const p = pkg?.cpai?.profiles;
+    if (p && typeof p === 'object' && p[name]) return p[name] as AicpProfile;
+  } catch {}
+  // 3) Global (~/.cpai/config.json or ~/.cpai/.cpairc.json)
+  const home = os.homedir?.() || process.env.HOME || process.env.USERPROFILE || '';
+  const cpaiHome = home ? path.join(home, '.cpai') : '';
+  const globalCandidates = [
+    cpaiHome && path.join(cpaiHome, 'config.json'),
+    cpaiHome && path.join(cpaiHome, '.cpairc.json'),
+  ].filter(Boolean) as string[];
+  for (const p of globalCandidates) {
+    try {
+      const raw = await fs.readFile(p, 'utf8');
+      const cfg = JSON.parse(raw);
+      const profs = cfg?.profiles;
+      if (profs && typeof profs === 'object' && profs[name]) return profs[name] as AicpProfile;
+    } catch {}
+  }
+  return undefined;
 }

@@ -1,0 +1,7 @@
+{
+  "profiles": {
+    "review": {
+      "include": ["from-global-prof"]
+    }
+  }
+}

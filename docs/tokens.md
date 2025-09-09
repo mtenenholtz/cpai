@@ -11,7 +11,7 @@ CPAI counts tokens with `@dqbd/tiktoken`.
 ## Estimates vs strict
 
 - Selection is done by estimated per‑file tokens plus wrapper overhead.
-- With `--strict` (default), CPAI re‑renders the final text and trims from the end to fit `--max-tokens`.
+- With `--strict` (default), CPAI re‑renders the final text and verifies it fits `--max-tokens`. If the rendered text exceeds the budget, the CLI errors unless `--truncate` is set, in which case it drops trailing files until it fits.
 
 ## Tips
 

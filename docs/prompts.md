@@ -54,7 +54,7 @@ Behavior:
   - Esc: save and close; Ctrl+Q: cancel
   - Shift+W/B: move by word; Ctrl+K: kill‑to‑EOL; Ctrl+W: delete word
 
-Project or global config can also set default instructions via `prompt` or `promptFile`.
+Project or global config can also set default instructions via `instructions` or `instructionsFile`.
 
 ## CLI composition
 

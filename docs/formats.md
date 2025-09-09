@@ -40,7 +40,7 @@ cpai copy . -f json > files.json
 Emits a tree and files section. Contents are wrapped in CDATA and file metadata is captured as attributes. This can be enabled via configuration (e.g., in a profile with `"xmlWrap": true`).
 
 ```xml
-<cpai version="0.1.0">
+<cpai version="<package version>">
   <tree><![CDATA[
 repo/
 ├─ src/

@@ -1,6 +1,6 @@
 {
   "name": "cpai",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "type": "module",
   "description": "Use web-only models (e.g., GPT-5 Pro) with your local codebase: scan, pack to token limits, and copy a paste-ready bundle.",
   "bin": {
@@ -24,11 +24,12 @@
   "publishConfig": {
     "access": "public"
   },
-  "packageManager": "pnpm@9",
+  "packageManager": "pnpm@10.13.1",
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "dev": "tsx src/cli.ts --help",
     "start": "node dist/cli.js",
+    "cli": "node dist/cli.js",
     "tui": "node dist/cli.js tui",
     "prepare": "pnpm run build",
     "prepack": "pnpm run build",

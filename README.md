@@ -219,14 +219,17 @@ repo/
 
 ### Options you’ll actually use
 
-- `--mouse` — enable mouse for this run (or set `"mouse": true` in `.cpairc.json`)
+- `--mouse` — enable experimental mouse mode for this run (not feature complete; or set `"mouse": true` in `.cpairc.json`)
 - `-i, --instructions "..."` / `--instructions-file <path>` — prefill the editor
 - `--prompts-dir <dir>` — add a directory of saved prompts
 - `--pick-prompts` — open the prompts picker on launch
 
 Mouse
 
-- Off by default; run with `cpai tui . --mouse`. Click to focus/select, wheel to scroll.
+- Experimental: mouse support is not feature complete. Some interactions may not
+  respond to clicks yet, and certain views still require keyboard navigation.
+- Off by default; run with `cpai tui . --mouse`. Click to focus/select, wheel to
+  scroll.
 
 Auto‑refresh
 
@@ -291,6 +294,7 @@ Use a project-local `.cpairc.json` and/or a global config at `~/.cpai/config.jso
 - Global `~/.cpai/config.json`
 - Project `package.json#cpai`
 - Project `.cpairc.json`
+- Profile (when `-P/--profile` is used)
 - Command-line flags
 
 Example minimal config:
@@ -345,6 +349,7 @@ Saved prompts
 Profiles (`profiles`)
 
 - Define named overrides for common scenarios. Specify in `.cpairc.json` or global config, then use with `cpai copy . --profile <name>`.
+- Profile lookup order when `-P/--profile` is used: project `.cpairc.json#profiles` → project `package.json#cpai.profiles` → global `~/.cpai/config.json#profiles`.
 
 Profile fields
 
@@ -353,7 +358,7 @@ Profile fields
   - `xmlWrap`: boolean. Wrap output in XML with `<tree>` and `<file>` elements.
   - `codeFences`: boolean. For markdown format, include ``` fences (default true).
   - `packOrder`: `"small-first" | "large-first" | "path"`. Greedy packing order.
-  - `strict`: boolean. Re-count rendered tokens and trim to budget if needed (default true).
+  - `strict`: boolean. Re-count rendered tokens and verify budget (default true). Combine with `truncate: true` to auto-trim trailing files when over budget; otherwise the CLI errors if exceeded.
   - `mouse`: boolean. Per-profile TUI mouse override.
 
 Profile example

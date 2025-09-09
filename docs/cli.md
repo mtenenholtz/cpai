@@ -39,6 +39,9 @@ Key options:
 - `--model <name>`; `--encoding <tiktoken>`
 - `--by-dir` (also print directory-level summary)
 - `--json`
+- `--grep <pattern>` only include files whose contents match this regex
+- `--sort bytes|tokens` sort the table by a column
+- `--desc` sort descending (with `--sort`)
 
 Example:
 
@@ -70,6 +73,7 @@ Key options:
 - `-P, --profile <name>` use a named profile from config
 - `-i, --instructions <text>` / `--instructions-file <path>` include ad‑hoc instructions
 - `--by-dir` also print directory breakdown to stderr
+- `--grep <pattern>` only include files whose contents match this regex
 
 Config interaction:
 
@@ -93,7 +97,7 @@ Examples:
 
 Notes:
 
-- When `--max-tokens` is set, CPAI estimates token cost per file and selects files until the budget is reached. With `--strict`, it re-renders and trims from the end until under budget.
+- When `--max-tokens` is set, CPAI estimates token cost per file and selects files until the budget is reached. With `--strict` (default), it re-renders and verifies the final text fits the budget. If it exceeds the budget, the CLI errors unless `--truncate` is set, in which case it drops trailing files until it fits.
 - Markdown default includes code fences and per-file headings; use `--no-code-fences` to omit fences.
 
 ---
@@ -108,6 +112,7 @@ Options:
 - `--prompts-dir <dir>` (saved prompts additional directory)
 - `--pick-prompts` (open saved prompts on launch)
 - `--mouse` (enable mouse for this run; otherwise use config)
+- `--grep <pattern>` preselect only matching files; non-matching remain visible but auto‑deselected
 
 Config interaction:
 

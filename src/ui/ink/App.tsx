@@ -17,15 +17,19 @@ import { PromptsPicker } from './components/PromptsPicker.js';
 import clipboard from 'clipboardy';
 import { useMouse, type MouseEvent as InkMouseEvent } from './hooks/useMouse.js';
 import path from 'node:path';
+import fs from 'node:fs/promises';
 import { globby } from 'globby';
 import { hyperlink } from './hyperlink.js';
 
 export function App(props: {
   cwd: string;
   promptText?: string;
+  grep?: string;
   promptsDir?: string;
   openPromptPicker?: boolean;
   mouse?: boolean;
+  // Adapter-provided hook to capture emitted text for writing after unmount
+  onEmit?: (text: string) => void;
 }) {
   const { exit } = useApp();
   // Fixed-height headers for Files list to mirror Rankings and keep symmetric vertical structure
@@ -107,6 +111,7 @@ export function App(props: {
   const stateRef = useRef<State | null>(null);
   const lastFileSetRef = useRef<Set<string> | null>(null);
   const isRescanningRef = useRef(false);
+  const lastNavAtRef = useRef<number>(0);
   useEffect(() => {
     stateRef.current = state;
   }, [state]);
@@ -134,19 +139,23 @@ export function App(props: {
     const total = visibleNodes(next).length;
     if (next.selectedIdx < 0) next.selectedIdx = 0;
     if (next.selectedIdx >= total) next.selectedIdx = Math.max(0, total - 1);
-    const vc = visibleCount();
-    if (next.selectedIdx < viewTop) setViewTop(next.selectedIdx);
-    else if (next.selectedIdx >= viewTop + vc)
-      setViewTop(Math.max(0, next.selectedIdx - Math.max(1, Math.floor(vc / 2))));
+    // Compute actual visible row count for the Files pane body using the same
+    // geometry as render so scrolling stays in sync with the viewport.
+    const g = calcGeometry({
+      rows: rows || 24,
+      cols: cols || 80,
+      focusPane,
+      paneMode: next.paneMode,
+      hasNotif: !!notify,
+    });
+    const vc = Math.max(1, g.filesBodyH);
+    setViewTop((t) => {
+      if (next.selectedIdx < t) return next.selectedIdx;
+      if (next.selectedIdx >= t + vc) return Math.max(0, next.selectedIdx - vc + 1);
+      return t;
+    });
     // copy to trigger render
     setState({ ...next });
-  }
-
-  function visibleCount(): number {
-    const header = 2; // title + blank
-    const footer = 3; // prompt + hint
-    const usable = Math.max(3, (rows || 24) - header - footer);
-    return usable;
   }
 
   function visibleNodes(s: State): VisibleNode[] {
@@ -155,12 +164,41 @@ export function App(props: {
     return makeVisibleTree(root, s.treeExpanded, eligible);
   }
 
+  // Stable selection helpers: map visible nodes to keys and restore selection by key
+  function keyOf(v: VisibleNode): string {
+    return v.kind === 'file' ? `f:${v.file.relPath}` : `d:${v.node.path}`;
+  }
+  function selectedKeyOf(s: State): string | null {
+    const vis = visibleNodes(s);
+    const cur = vis[s.selectedIdx];
+    return cur ? keyOf(cur) : null;
+  }
+  function restoreSelectionByKey(s: State, key: string | null) {
+    if (!key) return;
+    const vis = visibleNodes(s);
+    const idx = vis.findIndex((v) => keyOf(v) === key);
+    if (idx >= 0) s.selectedIdx = idx;
+  }
+
   useEffect(() => {
     (async () => {
       try {
         const fileCfg = await loadAicpConfig(cwd);
         const s = makeDefaultState(cwd, fileCfg);
-        s.promptText = props.promptText ?? s.promptText;
+        // Prefer CLI-provided text, else config instructionsFile, else config instructions
+        if (props.promptText) {
+          s.promptText = props.promptText;
+        } else if ((fileCfg as any)?.instructionsFile) {
+          try {
+            const p = path.isAbsolute((fileCfg as any).instructionsFile)
+              ? (fileCfg as any).instructionsFile
+              : path.join(cwd, (fileCfg as any).instructionsFile);
+            s.promptText = await fs.readFile(p, 'utf8');
+          } catch {}
+        } else if ((fileCfg as any)?.instructions) {
+          s.promptText = String((fileCfg as any).instructions);
+        }
+        s.grep = props.grep ?? s.grep;
         s.availablePrompts = await loadSavedPrompts(cwd, props.promptsDir);
         // Auto-select saved prompts configured in project/global config (project wins by loadAicpConfig merge)
         const autoNames: string[] | undefined = (fileCfg as any).selectedPrompts;
@@ -187,13 +225,17 @@ export function App(props: {
   // Auto-reload: poll for added/removed files and rescan when list changes
   useEffect(() => {
     let cancelled = false;
-    const pollMs = Number(process.env.CPAI_TUI_POLL_MS || '') || 2000;
+    const rawPoll = Number(process.env.CPAI_TUI_POLL_MS || '');
+    const pollMs = Number.isFinite(rawPoll) && rawPoll >= 0 ? rawPoll : 2000;
 
     async function check() {
       if (cancelled) return;
       const s = stateRef.current;
       if (!s) return;
       if (isRescanningRef.current) return;
+      // Defer rescans briefly while user is actively navigating to avoid visible jumps
+      const now = Date.now();
+      if (now - lastNavAtRef.current < 250) return;
       try {
         const patterns = s.include?.length ? s.include : ['**/*'];
         const paths = await globby(patterns, {
@@ -226,10 +268,13 @@ export function App(props: {
         if (changed) {
           isRescanningRef.current = true;
           setProgress({ done: 0, total: 0 });
+          const prevKey = selectedKeyOf(s);
           await rescan(s, (d, t) => setProgress({ done: d, total: t }));
           setProgress(null);
           lastFileSetRef.current = new Set(s.files.map((f) => f.relPath));
-          setState({ ...s });
+          // Try to preserve the same selection target if it still exists
+          restoreSelectionByKey(s, prevKey);
+          bump(s);
         }
       } catch {
         // ignore errors during polling
@@ -238,6 +283,12 @@ export function App(props: {
       }
     }
 
+    if (pollMs === 0) {
+      // Polling disabled
+      return () => {
+        cancelled = true;
+      };
+    }
     const timer = setInterval(check, pollMs);
     return () => {
       cancelled = true;
@@ -277,6 +328,28 @@ export function App(props: {
         await rescan(state, (d, t) => setProgress({ done: d, total: t }));
         setProgress(null);
         bump(state);
+      })();
+      return;
+    }
+    // Emit and exit (always available)
+    if (input === 'x') {
+      (async () => {
+        try {
+          setStatusMsg('Emitting…');
+          const eligible = buildEligible(state);
+          const { text } = await renderPackedText(eligible, state);
+          try {
+            props.onEmit?.(text);
+          } finally {
+            exit();
+          }
+        } catch (e: any) {
+          const msg = `Emit failed: ${e?.message ?? e}`;
+          setStatusMsg(msg);
+          if (notifyTimer.current) clearTimeout(notifyTimer.current);
+          setNotify({ text: msg, kind: 'error' });
+          notifyTimer.current = setTimeout(() => setNotify(null), 2500);
+        }
       })();
       return;
     }
@@ -379,6 +452,7 @@ export function App(props: {
       return;
     }
     if (input === 'j' || key.downArrow) {
+      lastNavAtRef.current = Date.now();
       if (focusPane === 'files') {
         state.selectedIdx += 1;
         bump(state);
@@ -392,6 +466,7 @@ export function App(props: {
       return;
     }
     if (input === 'k' || key.upArrow) {
+      lastNavAtRef.current = Date.now();
       if (focusPane === 'files') {
         state.selectedIdx -= 1;
         bump(state);
@@ -778,8 +853,10 @@ export function App(props: {
   const filesBody = Math.max(1, innerH - 2); // minus title and headers
   const ranksBody = Math.max(1, innerH - 2); // minus title and headers
   const safeCols = Math.max(10, (cols || 80) - 2); // account for root paddingX={1}
-  const baseFullHelp = `j/k scroll • space toggle • d details/rank • w swap • p edit instructions • Ctrl-R rescan • q quit`;
-  const baseShortHelp = `j/k • space • d • w • p edit instructions • Ctrl-R • q`;
+  const emitHintFull = ' • x emit';
+  const emitHintShort = ' • x';
+  const baseFullHelp = `j/k scroll • space toggle • d details/rank • w swap • p edit instructions • Ctrl-R rescan${emitHintFull} • q quit`;
+  const baseShortHelp = `j/k • space • d • w • p edit instructions • Ctrl-R${emitHintShort} • q`;
   const eHintFull = focusPane === 'rankings' ? ' • e full-name' : '';
   const eHintShort = focusPane === 'rankings' ? ' • e' : '';
   const fullHelp = `${baseFullHelp}${eHintFull}${statusMsg ? ' • ' + statusMsg : ''}`;
